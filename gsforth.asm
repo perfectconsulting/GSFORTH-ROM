@@ -171,7 +171,6 @@ ROM_SERVICE_COMMAND
           PHA
           TYA
           PHA        
-ROM_SERVICE_COMMAND_G  
           LDA ($F2), Y 
           CMP #'G'
           BNE ROM_SERVICE_COMMAND_EXIT 
