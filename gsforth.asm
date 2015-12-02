@@ -84,8 +84,12 @@ CHK_ASTK_MIN_3 .MA   HANDLER
 CHK_ASTK_MIN_4 .MA   HANDLER
               CPX #ASTK_BOT-6
               BCS ]1_ASTK_UNDERFLOW
-              .EM              
+              .EM    
               
+CHK_ASTK_FRE_2 .MA   HANDLER                        
+              CPX #ASTK_TOP+2
+              BCC ]1_ASTK_OVERFLOW
+              .EM
                          
 OSRDCH        .EQ   $FFE0         
 OSNEWL        .EQ   $FFE7
@@ -103,9 +107,9 @@ ASTK          .EQ   ASTK_TOP
 ; ZERO PAGE REGISTERS
 
 USER_LSB      .EQ   $70
-USER_MSB      .EQ   $70   
-ASP           .EQ   USER_MSB+2
-SCRATCH1      .EQ   ASTK+1
+USER_MSB      .EQ   $71   
+ASP           .EQ   USER_MSB+1
+SCRATCH1      .EQ   ASP+1
 SCRATCH2      .EQ   SCRATCH1+1
 SCRATCH3      .EQ   SCRATCH2+1
 
@@ -113,7 +117,7 @@ SCRATCH3      .EQ   SCRATCH2+1
 ERR_STKOVR    .EQ   $01
 ERR_STKUDR    .EQ   $02
 ERR_ASTKOVR   .EQ   $03
-ERR_ASTK_UDR  .EQ   $04
+ERR_ASTKUDR   .EQ   $04
 ERR_MISLEX    .EQ   $05
 ERR_DIVZERO   .EQ   $06
 ERR_UNIQUE    .EQ   $07
@@ -589,612 +593,713 @@ DPLUS_NFA ; d+
           .DB $02^$80, 'd', $2B^$80
           .DW PLUS_CFA
 DPLUS_CFA
-        >CHK_STK_MIN_4 DPLUS
-        CLC
-        LDA STK+3,X
-        ADC STK+7,X
-        STA STK+7,X
-        LDA STK+4,X
-        ADC STK+8,X
-        STA STK+8,X
-        LDA STK+1,X
-        ADC STK+5,X
-        STA STK+5,X
-        LDA STK+2,X
-        ADC STK+6,X
-        STA STK+6,X
-        INX
-        INX
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW DPLUS
-        
-UTIMES_NFA ; u*
-        .DB $02^$80,'u',$2A^$80
-        .DW DPLUS_NFA
-UTIMES_CFA
-        >CHK_STK_MIN_2 UTIMES
-        LDA STK+3,X
-        STA SCRATCH1
-        LDA STK+4,X
-        STA SCRATCH2
-        LDA #$00
-        STA STK+3,X
-        STA STK+4,X
-        LDY #$10
-UTIMES_ROTATE
-        ASL STK+3,X
-        ROL STK+4,X
-        ROL STK+1,X
-        ROL STK+2,X
-        BCC UTIMES_MODIFY
-        CLC
-        LDA SCRATCH1
-        ADC STK+3,X
-        STA STK+3,X
-        LDA SCRATCH2
-        ADC STK+4,X
-        STA STK+4,X
-        BCC UTIMES_MODIFY
-        INC STK+1,X
-        BNE UTIMES_MODIFY
-        INC STK+2,X
-UTIMES_MODIFY
-        DEY
-        BNE UTIMES_ROTATE
-        RTS
-        >HDLR_STK_UNDERFLOW UTIMES
-                                  
-UDIVIDE_NFA ; u/
-        .DB $02^$80, 'u', $2F^$80
-        .DW UTIMES_NFA
-UDIVIDE_CFA
-        >CHK_STK_MIN_3 UDIVIDE
-        LDA STK+1,X
-        BNE UDIVIDE_NONZERO
-        LDA STK+2,X
-        BEQ UDIVIDE_ZERO
-UDIVIDE_NONZERO
-        LDA STK+5,X
-        LDY STK+3,X
-        STY STK+5,X
-        ASL A
-        STA STK+3,X
-        LDA STK+6,X
-        LDY STK+4,X
-        STY STK+6,X
-        ROL A
-        STA STK+4,X
-        LDA #$10
-        STA SCRATCH1
-UDIVIDE_ROTATE
-        ROL STK+5,X 
-        ROL STK+6,X
-        SEC
-        LDA STK+5,X
-        SBC STK+1,X
-        TAY
-        LDA STK+6,X
-        SBC STK+2,X
-        BCC UDIVIDE_MODIFY
-        STY STK+5,X
-        STA STK+6,X
-UDIVIDE_MODIFY
-        ROL STK+3,X
-        ROL STK+4,X
-        DEC SCRATCH1
-        BNE UDIVIDE_ROTATE
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW UDIVIDE         
-UDIVIDE_ZERO
-        LDA #ERR_DIVZERO
-        JMP (ORG_ERROR_VCT)     
-        
-MINUS_NFA
-        .DB $05^$80, 'minu',$73^$80
-        .DB UDIVIDE_NFA
-MINUS_CFA
-        >CHK_STK_EMPTY MINUS
-        CLC
-        LDA STK+1,X
-        EOR #$FF
-        ADC #$01
-        STA STK+1,X
-        LDA STK+2,X
-        EOR #$FF
-        ADC #$00
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW MINUS
-        
-DMINUS_NFA
-        .DB $06^$80,'dminu', $73^$80
-        .DW MINUS_NFA
-DMINUS_CFA
-        >CHK_STK_MIN_2 DMINUS
-        CLC
-        LDA STK+3,X
-        EOR #$FF
-        ADC #$01
-        STA STK+3,X
-        LDA STK+4,X
-        EOR #$FF
-        ADC #$00
-        STA STK+4,X
-        LDA STK+1,X
-        EOR #$FF
-        ADC #$00
-        STA STK+1,X
-        LDA STK+2,X
-        EOR #$FF
-        ADC #$00
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW DMINUS              
-        
-ONEPLUS_NFA ; 1+
-        .DB $02^$80,'1',$2B^$80
-        .DW DMINUS_NFA
-ONEPLUS_CFA
-        >CHK_STK_EMPTY ONEPLUS
-        INC STK+1,X
-        BNE ONEPLUS_NOOVERFLOW
-        INC STK+2,X
-ONEPLUS_NOOVERFLOW
-        RTS     
-        >HDLR_STK_UNDERFLOW ONEPLUS
-        
-ONEMINUS_NFA ; 1-
-        .DB $02^$80,'1',$2D^$80
-        .DW ONEPLUS_NFA
-ONEMINUS_CFA
-        >CHK_STK_EMPTY ONEMINUS
-        LDA STK+1,X
-        BNE ONEMINUS_NOOVERFLOW
-        DEC STK+2,X
-ONEMINUS_NOOVERFLOW       
-        DEC STK+1,X
-        RTS
-        >HDLR_STK_UNDERFLOW ONEMINUS
-        
-TWOPLUS_NFA ; 2+
-        .DB $02^$80,'2',$2D^$80
-        .DW ONEMINUS_NFA
-TWOPLUS_CFA
-        >CHK_STK_EMPTY TWOPLUS
-        CLC
-        LDA STK,X
-        ADC #$02
-        STA STK+1,X
-        BCC TWOPLUS_END
-        INC STK+2,X
-TWOPLUS_END
-        RTS
-        >HDLR_STK_UNDERFLOW TWOPLUS
-        
-TWOMINUS_NFA ; 2-
-        .DB $02^$80,'2',$2D^$80
-        .DW TWOPLUS_NFA
-TWOMINUS_CFA
-        >CHK_STK_EMPTY TWOMINUS
-        SEC
-        LDA STK+1,X
-        SBC #$02
-        STA STK+1,X
-        BCS TWOMINUS_END
-        DEC STK+2,X
-TWOMINUS_END
-        RTS
-        >HDLR_STK_UNDERFLOW TWOMINUS
-                                    
-MIN_NFA ; min
-        .DB $03^$80,'mi',$6E^$80
-        .DW TWOMINUS_NFA
-MIN_CFA
-        >CHK_STK_MIN_2 MIN
-        SEC
-        LDA STK+1,X
-        SBC STK+3,X
-        LDA STK+2,X
-        SBC STK+4,X
-        BPL MIN_END
-        LDA STK+1,X
-        STA STK+3,X
-        LDA STK+2,X
-        STA STK+4,X
-MIN_END
-        INX
-        INX
-        RTS  
-        >HDLR_STK_UNDERFLOW MIN
-        
-MAX_NFA ; max
-        .DB $03^$80,'ma',$6E^$80
-        .DW MIN_NFA
-MAX_CFA      
-        >CHK_STK_MIN_2 MAX
-        SEC
-        LDA STK+3,X
-        SBC STK+1,X
-        LDA STK+4,X
-        SBC STK+2,X
-        BPL MAX_END
-        LDA STK+1,X
-        STA STK+3,X
-        LDA STK+2,X
-        STA STK+4,X
-MAX_END
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW MAX
-       
-PLUSMINUS_NFA ; +-
-        .DB $02^$80,'+', $2D^$80
-        .DW MAX_CFA
-PLUSMINUS_CFA
-        >CHK_STK_MIN_2 PLUSMINUS
-        LDA STK+2,X
-        ASL A
-        BCC PLUSMINUS_END
-        CLC
-        LDA STK+3,X
-        EOR #$FF
-        ADC #$01
-        STA STK+3,X
-        LDA STK+4,X
-        EOR #$FF
-        ADC #$00
-        STA STK+4,X
-PLUSMINUS_END
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW PLUSMINUS
-        
-DPLUSMINUS_NFA ; d+-
-        .DB $03^$80,'d+', $2D^$80
-        .DW PLUSMINUS_NFA 
-DPLUSMINUS_CFA
-        >CHK_STK_MIN_3 DPLUSMINUS
-        LDA STK+2,X
-        ASL A
-        BCC DPLUSMINUS_END
-        CLC
-        LDA STK+5,X
-        EOR #$FF
-        ADC #$01
-        STA STK+5,X
-        LDA STK+6,X
-        EOR #$FF
-        ADC #$00
-        STA STK+6,X
-        LDA STK+3,X
-        EOR #$FF
-        ADC #$00
-        STA STK+3,X
-        LDA STK+4,X
-        EOR #$FF
-        ADC #$00
-        STA STK+4,X
-DPLUSMINUS_END
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW DPLUSMINUS
-        
-PLUSORIGIN_NFA ; +origin
-        .DB $07^$80,'+origin'
-        .DW DPLUSMINUS_NFA
-PLUSORIGIN_CFA
-        >CHK_STK_EMPTY PLUSORIGIN
-        CPX #STK_BOT
-        BEQ PLUSORIGIN_STK_UNDERFLOW 
-        CLC
-        LDA STK+1,X
-        ADC USER_LSB
-        STA STK+1,X
-        LDA STK+2,X
-        ADC USER_MSB
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW PLUSORIGIN
- 
-AND_NFA ; and
-        .DB $03^$80,'an',$64^$80
-        .DW PLUSORIGIN_NFA
-AND_CFA
-        >CHK_STK_MIN_2 AND
-        LDA STK+1,X
-        AND STK+3,X
-        STA STK+3,X
-        LDA STK+2,X
-        AND STK+4,X
-        STA STK+4,X
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW AND
-        
-OR_NFA ; or
-        .DB $02^$80,'o',$72^$80
-        .DW AND_NFA
-OR_CFA
-        >CHK_STK_MIN_2 OR
-        LDA STK+1,X
-        ORA STK+3,X
-        STA STK+3,X
-        LDA STK+2,X
-        ORA STK+4,X
-        STA STK+4,X
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW OR
-
-XOR_NFA ; xor
-        .DB $03^$80,'xo',$72^$80
-        .DW OR_NFA
-XOR_CFA
-        >CHK_STK_MIN_2 XOR
-        LDA STK+1,X
-        EOR STK+3,X
-        STA STK+3,X
-        LDA STK+2,X
-        EOR STK+4,X
-        STA STK+4,X
-        INX
-        INX
-        RTS      
-        >HDLR_STK_UNDERFLOW XOR
-      
-NOT_NFA ; not
-        .DB $03^$80,'n',$74^$80  
-        .DW XOR_NFA
-NOT_CFA
-        >CHK_STK_EMPTY NOT
-        LDA STK+1,X
-        EOR #$FF
-        STA STK+1,X
-        LDA STK+2,X
-        EOR #$FF
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW NOT
-      
-TOGGLE_NFA ; toggle
-        .DB $06^$80,'toggl',$65^$80
-        .DW NOT_NFA
-TOGGLE_CFA
-        >CHK_STK_MIN_2 TOGGLE
-        LDA (STK+3,X)
-        EOR STK+1,X
-        STA (STK+3,X)
-        INX
-        INX
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW TOGGLE
-      
-EQUAL_NFA ; =
-        .DB $01^$80,$3D^$80
-        .DW TOGGLE_NFA
-EQUAL_CFA
-        >CHK_STK_MIN_2 EQUAL
-        LDA STK+1,X
-        CMP STK+3,X
-        BNE EQUAL_FALSE
-        LDA STK+2,X
-        CMP STK+4,X
-        BNE EQUAL_FALSE
-        LDA #$FF
-        STA STK+3,X
-        STA STK+4,X
-        INX
-        INX
-        RTS
-EQUAL_FALSE
-        LDA #$00
-        STA STK+3,X
-        STA STK+4,X
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW EQUAL
- 
-GREATER_NFA ; >
-        .DB $01^$80,$3E^$80
-        .DW EQUAL_NFA
-GREATER_CFA
-        >CHK_STK_MIN_2 GREATER
-        SEC
-        LDA STK+1,X
-        SBC STK+3,X
-        LDA STK+2,X
-        SBC STK+4,X
-        BPL GREATER_FALSE
-        LDA #$FF
-        STA STK+4,X
-        STA STK+3,X
-        INX
-        INX
-        RTS
-GREATER_FALSE
-        LDA #$00
-        STA STK+4,X
-        STA STK+3,X
-        INX
-        INX
-        RTS
-        >HDLR_STK_UNDERFLOW GREATER
-      
-LESS_NFA ; <
-        .DB $04^$80,'les', $73^$80
-        .DW GREATER_NFA
-LESS_CFA
-        >CHK_STK_MIN_2 LESS
-        SEC
-        LDA STK+3,X
-        SBC STK+1,X
-        LDA STK+4,X
-        SBC STK+2,X
-        BPL LESS_FALSE
-        LDA #$FF
-        STA STK+4,X
-        STA STK+3,X
-        INX
-        INX
-        RTS
-LESS_FALSE     
-        LDA #$00
-        STA STK+4,X
-        STA STK+3,X
-        INX
-        INX
-        RTS            
-        >HDLR_STK_UNDERFLOW LESS
-      
-ZEROGREATER_NFA ; 0>
-        .DB $02^$80,'0', $3E^$80
-        .DW LESS_NFA
-ZEROGREATER_CFA
-        >CHK_STK_EMPTY ZEROGREATER
-        LDA STK+2,X
-        BMI ZEROGREATERFALSE
-        LDA STK+1,X
-        BNE ZEROGREATERTRUE
-ZEROGREATERFALSE
-        LDA #$00
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-ZEROGREATERTRUE
-        LDA #$FF
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW ZEROGREATER                  
-               
-ZEROLESS_NFA ; 0<
-        .DB $02^$80,'0',$3C^$80
-        .DW ZEROGREATER_NFA
-ZEROLESS_CFA
-        >CHK_STK_EMPTY ZEROLESS
-        LDA STK+2,X
-        ASL A
-        BCS ZEROLESS_TRUE
-        LDA #$00
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-ZEROLESS_TRUE
-        LDA #$FF
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW ZEROLESS     
-      
-ZEROEQUALS_NFA ; 0=
-        .DB $02^$80,'0', $3D^$80
-        .DW ZEROLESS_NFA
-ZEROEQUALS_CFA
-        >CHK_STK_EMPTY ZEROEQUALS
-        LDA STK+1,X
-        ORA STK+2,X
-        BEQ ZEROEQUALS_TRUE
-        LDA #$00
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-ZEROEQUALS_TRUE
-        LDA #$FF
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW ZEROEQUALS    
-      
-UGREATER_NFA ; u>
-        .DB $02^$80, 'u', $3E^$80
-        .DW ZEROEQUALS_NFA
-UGRATER_CFA
-        >CHK_STK_MIN_2 UGREATER
-        LDA STK+4,X
-        CMP STK+2,X
-        BCC UGREATER_FALSE
-        BNE UGREATER_TRUE
-        LDA STK+3,X
-        CMP STK+1,X
-        BCC UGREATER_FALSE
-        BEQ UGREATER_FALSE
-UGREATER_TRUE
-        INX
-        INX
-        LDA #$FF
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-UGREATER_FALSE
-        INX
-        INX
-        LDA #$00
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW UGREATER
-
-ULESS_NFA ; u<
-        .DB $02^$80,'u',$3C^$80
-        .DW UGREATER_NFA
-ULESS_CFA
-        >CHK_STK_MIN_2 ULESS
-        LDA STK+2,X
-        CMP STK+4,X
-        BCC ULESS_FALSE
-        BNE ULESS_TRUE
-        LDA STK+1,X
-        CMP STK+3,X
-        BCC ULESS_FALSE
-        BEQ ULESS_FALSE
-ULESS_TRUE
-        INX
-        INX
-        LDA #$FF
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-ULESS_FALSE
-        INX
-        INX
-        LDA #$00
-        STA STK+1,X
-        STA STK+2,X
-        RTS
-        >HDLR_STK_UNDERFLOW ULESS 
-                                              
-QBRANCH_NFA ; ?branch
-        .DB $07^$80,'?branc',$68^$80
-        .DW ULESS_NFA
-QBRANCH_CFA
-        >CHK_STK_EMPTY QBRANCH
-        LDY STK+2,X
-        BNE QBRANCH_END
-        LDY STK+1,X
-QBRANCH_END
-        INX
-        INX
-        TYA
-        RTS
-        >HDLR_STK_UNDERFLOW QBRANCH    
-      
-                    
-;--------------------------------------------------------------------------------------------------------------------------------------------          
+          >CHK_STK_MIN_4 DPLUS
+          CLC
+          LDA STK+3,X
+          ADC STK+7,X
+          STA STK+7,X
+          LDA STK+4,X
+          ADC STK+8,X
+          STA STK+8,X
+          LDA STK+1,X
+          ADC STK+5,X
+          STA STK+5,X
+          LDA STK+2,X
+          ADC STK+6,X
+          STA STK+6,X
+          INX
+          INX
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW DPLUS
           
-      
+UTIMES_NFA ; u*
+          .DB $02^$80,'u',$2A^$80
+          .DW DPLUS_NFA
+UTIMES_CFA
+          >CHK_STK_MIN_2 UTIMES
+          LDA STK+3,X
+          STA SCRATCH1
+          LDA STK+4,X
+          STA SCRATCH2
+          LDA #$00
+          STA STK+3,X
+          STA STK+4,X
+          LDY #$10
+UTIMES_ROTATE
+          ASL STK+3,X
+          ROL STK+4,X
+          ROL STK+1,X
+          ROL STK+2,X
+          BCC UTIMES_MODIFY
+          CLC
+          LDA SCRATCH1
+          ADC STK+3,X
+          STA STK+3,X
+          LDA SCRATCH2
+          ADC STK+4,X
+          STA STK+4,X
+          BCC UTIMES_MODIFY
+          INC STK+1,X
+          BNE UTIMES_MODIFY
+          INC STK+2,X
+UTIMES_MODIFY
+          DEY
+          BNE UTIMES_ROTATE
+          RTS
+          >HDLR_STK_UNDERFLOW UTIMES
+                                    
+UDIVIDE_NFA ; u/
+          .DB $02^$80, 'u', $2F^$80
+          .DW UTIMES_NFA
+UDIVIDE_CFA
+          >CHK_STK_MIN_3 UDIVIDE
+          LDA STK+1,X
+          BNE UDIVIDE_NONZERO
+          LDA STK+2,X
+          BEQ UDIVIDE_ZERO
+UDIVIDE_NONZERO
+          LDA STK+5,X
+          LDY STK+3,X
+          STY STK+5,X
+          ASL A
+          STA STK+3,X
+          LDA STK+6,X
+          LDY STK+4,X
+          STY STK+6,X
+          ROL A
+          STA STK+4,X
+          LDA #$10
+          STA SCRATCH1
+UDIVIDE_ROTATE
+          ROL STK+5,X 
+          ROL STK+6,X
+          SEC
+          LDA STK+5,X
+          SBC STK+1,X
+          TAY
+          LDA STK+6,X
+          SBC STK+2,X
+          BCC UDIVIDE_MODIFY
+          STY STK+5,X
+          STA STK+6,X
+UDIVIDE_MODIFY
+          ROL STK+3,X
+          ROL STK+4,X
+          DEC SCRATCH1
+          BNE UDIVIDE_ROTATE
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW UDIVIDE         
+UDIVIDE_ZERO
+          LDA #ERR_DIVZERO
+          JMP (ORG_ERROR_VCT)     
+          
+MINUS_NFA
+          .DB $05^$80, 'minu',$73^$80
+          .DB UDIVIDE_NFA
+MINUS_CFA
+          >CHK_STK_EMPTY MINUS
+          CLC
+          LDA STK+1,X
+          EOR #$FF
+          ADC #$01
+          STA STK+1,X
+          LDA STK+2,X
+          EOR #$FF
+          ADC #$00
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW MINUS
+          
+DMINUS_NFA
+          .DB $06^$80,'dminu', $73^$80
+          .DW MINUS_NFA
+DMINUS_CFA
+          >CHK_STK_MIN_2 DMINUS
+          CLC
+          LDA STK+3,X
+          EOR #$FF
+          ADC #$01
+          STA STK+3,X
+          LDA STK+4,X
+          EOR #$FF
+          ADC #$00
+          STA STK+4,X
+          LDA STK+1,X
+          EOR #$FF
+          ADC #$00
+          STA STK+1,X
+          LDA STK+2,X
+          EOR #$FF
+          ADC #$00
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW DMINUS              
+          
+ONEPLUS_NFA ; 1+
+          .DB $02^$80,'1',$2B^$80
+          .DW DMINUS_NFA
+ONEPLUS_CFA
+          >CHK_STK_EMPTY ONEPLUS
+          INC STK+1,X
+          BNE ONEPLUS_NOOVERFLOW
+          INC STK+2,X
+ONEPLUS_NOOVERFLOW
+          RTS     
+          >HDLR_STK_UNDERFLOW ONEPLUS
+          
+ONEMINUS_NFA ; 1-
+          .DB $02^$80,'1',$2D^$80
+          .DW ONEPLUS_NFA
+ONEMINUS_CFA
+          >CHK_STK_EMPTY ONEMINUS
+          LDA STK+1,X
+          BNE ONEMINUS_NOOVERFLOW
+          DEC STK+2,X
+ONEMINUS_NOOVERFLOW       
+          DEC STK+1,X
+          RTS
+          >HDLR_STK_UNDERFLOW ONEMINUS
+          
+TWOPLUS_NFA ; 2+
+          .DB $02^$80,'2',$2D^$80
+          .DW ONEMINUS_NFA
+TWOPLUS_CFA
+          >CHK_STK_EMPTY TWOPLUS
+          CLC
+          LDA STK,X
+          ADC #$02
+          STA STK+1,X
+          BCC TWOPLUS_END
+          INC STK+2,X
+TWOPLUS_END
+          RTS
+          >HDLR_STK_UNDERFLOW TWOPLUS
+          
+TWOMINUS_NFA ; 2-
+          .DB $02^$80,'2',$2D^$80
+          .DW TWOPLUS_NFA
+TWOMINUS_CFA
+          >CHK_STK_EMPTY TWOMINUS
+          SEC
+          LDA STK+1,X
+          SBC #$02
+          STA STK+1,X
+          BCS TWOMINUS_END
+          DEC STK+2,X
+TWOMINUS_END
+          RTS
+          >HDLR_STK_UNDERFLOW TWOMINUS
+                                      
+MIN_NFA ; min
+          .DB $03^$80,'mi',$6E^$80
+          .DW TWOMINUS_NFA
+MIN_CFA
+          >CHK_STK_MIN_2 MIN
+          SEC
+          LDA STK+1,X
+          SBC STK+3,X
+          LDA STK+2,X
+          SBC STK+4,X
+          BPL MIN_END
+          LDA STK+1,X
+          STA STK+3,X
+          LDA STK+2,X
+          STA STK+4,X
+MIN_END
+          INX
+          INX
+          RTS  
+          >HDLR_STK_UNDERFLOW MIN
+          
+MAX_NFA ; max
+          .DB $03^$80,'ma',$6E^$80
+          .DW MIN_NFA
+MAX_CFA      
+          >CHK_STK_MIN_2 MAX
+          SEC
+          LDA STK+3,X
+          SBC STK+1,X
+          LDA STK+4,X
+          SBC STK+2,X
+          BPL MAX_END
+          LDA STK+1,X
+          STA STK+3,X
+          LDA STK+2,X
+          STA STK+4,X
+MAX_END
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW MAX
+         
+PLUSMINUS_NFA ; +-
+          .DB $02^$80,'+', $2D^$80
+          .DW MAX_CFA
+PLUSMINUS_CFA
+          >CHK_STK_MIN_2 PLUSMINUS
+          LDA STK+2,X
+          ASL A
+          BCC PLUSMINUS_END
+          CLC
+          LDA STK+3,X
+          EOR #$FF
+          ADC #$01
+          STA STK+3,X
+          LDA STK+4,X
+          EOR #$FF
+          ADC #$00
+          STA STK+4,X
+PLUSMINUS_END
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW PLUSMINUS
+          
+DPLUSMINUS_NFA ; d+-
+          .DB $03^$80,'d+', $2D^$80
+          .DW PLUSMINUS_NFA 
+DPLUSMINUS_CFA
+          >CHK_STK_MIN_3 DPLUSMINUS
+          LDA STK+2,X
+          ASL A
+          BCC DPLUSMINUS_END
+          CLC
+          LDA STK+5,X
+          EOR #$FF
+          ADC #$01
+          STA STK+5,X
+          LDA STK+6,X
+          EOR #$FF
+          ADC #$00
+          STA STK+6,X
+          LDA STK+3,X
+          EOR #$FF
+          ADC #$00
+          STA STK+3,X
+          LDA STK+4,X
+          EOR #$FF
+          ADC #$00
+          STA STK+4,X
+DPLUSMINUS_END
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW DPLUSMINUS
+          
+PLUSORIGIN_NFA ; +origin
+          .DB $07^$80,'+origin'
+          .DW DPLUSMINUS_NFA
+PLUSORIGIN_CFA
+          >CHK_STK_EMPTY PLUSORIGIN
+          CPX #STK_BOT
+          BEQ PLUSORIGIN_STK_UNDERFLOW 
+          CLC
+          LDA STK+1,X
+          ADC USER_LSB
+          STA STK+1,X
+          LDA STK+2,X
+          ADC USER_MSB
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW PLUSORIGIN
+   
+AND_NFA ; and
+          .DB $03^$80,'an',$64^$80
+          .DW PLUSORIGIN_NFA
+AND_CFA
+          >CHK_STK_MIN_2 AND
+          LDA STK+1,X
+          AND STK+3,X
+          STA STK+3,X
+          LDA STK+2,X
+          AND STK+4,X
+          STA STK+4,X
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW AND
+          
+OR_NFA ; or
+          .DB $02^$80,'o',$72^$80
+          .DW AND_NFA
+OR_CFA
+          >CHK_STK_MIN_2 OR
+          LDA STK+1,X
+          ORA STK+3,X
+          STA STK+3,X
+          LDA STK+2,X
+          ORA STK+4,X
+          STA STK+4,X
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW OR
+  
+XOR_NFA ; xor
+          .DB $03^$80,'xo',$72^$80
+          .DW OR_NFA
+XOR_CFA
+          >CHK_STK_MIN_2 XOR
+          LDA STK+1,X
+          EOR STK+3,X
+          STA STK+3,X
+          LDA STK+2,X
+          EOR STK+4,X
+          STA STK+4,X
+          INX
+          INX
+          RTS      
+          >HDLR_STK_UNDERFLOW XOR
+        
+NOT_NFA ; not
+          .DB $03^$80,'n',$74^$80  
+          .DW XOR_NFA
+NOT_CFA
+          >CHK_STK_EMPTY NOT
+          LDA STK+1,X
+          EOR #$FF
+          STA STK+1,X
+          LDA STK+2,X
+          EOR #$FF
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW NOT
+        
+TOGGLE_NFA ; toggle
+          .DB $06^$80,'toggl',$65^$80
+          .DW NOT_NFA
+TOGGLE_CFA
+          >CHK_STK_MIN_2 TOGGLE
+          LDA (STK+3,X)
+          EOR STK+1,X
+          STA (STK+3,X)
+          INX
+          INX
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW TOGGLE
+        
+EQUAL_NFA ; =
+          .DB $01^$80,$3D^$80
+          .DW TOGGLE_NFA
+EQUAL_CFA
+          >CHK_STK_MIN_2 EQUAL
+          LDA STK+1,X
+          CMP STK+3,X
+          BNE EQUAL_FALSE
+          LDA STK+2,X
+          CMP STK+4,X
+          BNE EQUAL_FALSE
+          LDA #$FF
+          STA STK+3,X
+          STA STK+4,X
+          INX
+          INX
+          RTS
+EQUAL_FALSE
+          LDA #$00
+          STA STK+3,X
+          STA STK+4,X
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW EQUAL
+   
+GREATER_NFA ; >
+          .DB $01^$80,$3E^$80
+          .DW EQUAL_NFA
+GREATER_CFA
+          >CHK_STK_MIN_2 GREATER
+          SEC
+          LDA STK+1,X
+          SBC STK+3,X
+          LDA STK+2,X
+          SBC STK+4,X
+          BPL GREATER_FALSE
+          LDA #$FF
+          STA STK+4,X
+          STA STK+3,X
+          INX
+          INX
+          RTS
+GREATER_FALSE
+          LDA #$00
+          STA STK+4,X
+          STA STK+3,X
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW GREATER
+        
+LESS_NFA ; <
+          .DB $04^$80,'les', $73^$80
+          .DW GREATER_NFA
+LESS_CFA
+          >CHK_STK_MIN_2 LESS
+          SEC
+          LDA STK+3,X
+          SBC STK+1,X
+          LDA STK+4,X
+          SBC STK+2,X
+          BPL LESS_FALSE
+          LDA #$FF
+          STA STK+4,X
+          STA STK+3,X
+          INX
+          INX
+          RTS
+LESS_FALSE     
+          LDA #$00
+          STA STK+4,X
+          STA STK+3,X
+          INX
+          INX
+          RTS            
+          >HDLR_STK_UNDERFLOW LESS
+        
+ZEROGREATER_NFA ; 0>
+          .DB $02^$80,'0', $3E^$80
+          .DW LESS_NFA
+ZEROGREATER_CFA
+          >CHK_STK_EMPTY ZEROGREATER
+          LDA STK+2,X
+          BMI ZEROGREATERFALSE
+          LDA STK+1,X
+          BNE ZEROGREATERTRUE
+ZEROGREATERFALSE
+          LDA #$00
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+ZEROGREATERTRUE
+          LDA #$FF
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW ZEROGREATER                  
                  
+ZEROLESS_NFA ; 0<
+          .DB $02^$80,'0',$3C^$80
+          .DW ZEROGREATER_NFA
+ZEROLESS_CFA
+          >CHK_STK_EMPTY ZEROLESS
+          LDA STK+2,X
+          ASL A
+          BCS ZEROLESS_TRUE
+          LDA #$00
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+ZEROLESS_TRUE
+          LDA #$FF
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW ZEROLESS     
+        
+ZEROEQUALS_NFA ; 0=
+          .DB $02^$80,'0', $3D^$80
+          .DW ZEROLESS_NFA
+ZEROEQUALS_CFA
+          >CHK_STK_EMPTY ZEROEQUALS
+          LDA STK+1,X
+          ORA STK+2,X
+          BEQ ZEROEQUALS_TRUE
+          LDA #$00
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+ZEROEQUALS_TRUE
+          LDA #$FF
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW ZEROEQUALS    
+        
+UGREATER_NFA ; u>
+          .DB $02^$80, 'u', $3E^$80
+          .DW ZEROEQUALS_NFA
+UGRATER_CFA
+          >CHK_STK_MIN_2 UGREATER
+          LDA STK+4,X
+          CMP STK+2,X
+          BCC UGREATER_FALSE
+          BNE UGREATER_TRUE
+          LDA STK+3,X
+          CMP STK+1,X
+          BCC UGREATER_FALSE
+          BEQ UGREATER_FALSE
+UGREATER_TRUE
+          INX
+          INX
+          LDA #$FF
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+UGREATER_FALSE
+          INX
+          INX
+          LDA #$00
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW UGREATER
+  
+ULESS_NFA ; u<
+          .DB $02^$80,'u',$3C^$80
+          .DW UGREATER_NFA
+ULESS_CFA
+          >CHK_STK_MIN_2 ULESS
+          LDA STK+2,X
+          CMP STK+4,X
+          BCC ULESS_FALSE
+          BNE ULESS_TRUE
+          LDA STK+1,X
+          CMP STK+3,X
+          BCC ULESS_FALSE
+          BEQ ULESS_FALSE
+ULESS_TRUE
+          INX
+          INX
+          LDA #$FF
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+ULESS_FALSE
+          INX
+          INX
+          LDA #$00
+          STA STK+1,X
+          STA STK+2,X
+          RTS
+          >HDLR_STK_UNDERFLOW ULESS 
+                                                
+QBRANCH_NFA ; ?branch
+          .DB $07^$80,'?branc',$68^$80
+          .DW ULESS_NFA
+QBRANCH_CFA
+          >CHK_STK_EMPTY QBRANCH
+          LDY STK+2,X
+          BNE QBRANCH_END
+          LDY STK+1,X
+QBRANCH_END
+          INX
+          INX
+          TYA
+          RTS
+          >HDLR_STK_UNDERFLOW QBRANCH    
+   
+BDO_NFA ; (do)
+          .DB $04^$80,'(do',$6F^$80
+          .DW QBRANCH_NFA
+BDO_CFA
+          >CHK_STK_MIN_2 BDO
+          TXA
+          TAY
+          LDA STK+1,X
+          STA SCRATCH1
+          LDA STK+2,X
+          STA SCRATCH2
+          LDA STK+3,X
+          STA SCRATCH3
+          LDA STK+4,X
+          LDX ASP
+          >CHK_ASTK_FRE_2 BDO
+          DEX
+          DEX
+          DEX
+          DEX
+          STA ASTK+4,X
+          LDA SCRATCH3
+          STA ASTK+3,X
+          LDA SCRATCH2
+          STA ASTK+2,X
+          LDA SCRATCH1
+          STA ASTK+1,X
+          STX ASP
+          TYA
+          TAX
+          INX
+          INX
+          INX
+          INX
+          RTS
+          >HDLR_STK_UNDERFLOW BDO
+          >HDLR_ASTK_OVERFLOW BDO
+                      
+BLOOP_NFA ; (loop)
+        .DB $06^$80,'(loop',$6F^$80
+        .DW BDO_NFA
+BLOOP_CFA
+        TXA
+        TAY
+        LDX ASP
+        >CHK_ASTK_MIN_2 BLOOP
+        INC ASTK+1,X
+        BNE BLOOP_TEST
+        INC ASTK+2,X
+BLOOP_TEST
+        CLC
+        LDA ASTK+3,X
+        SBC ASTK+1,X
+        LDA ASTK+4,X
+        SBC ASTK+2,X
+        ASL A
+        TYA
+        TAX
+        RTS
+        >HDLR_ASTK_UNDERFLOW BLOOP
+        
+BPLUSLOOP_NFA
+        .DB $07^$80,'(loop+',$6F^$80
+        .DW BLOOP_NFA
+BPLUSLOOP_CFA
+         >CHK_STK_EMPTY BPLUSLOOP
+        LDA STK+2,X
+        TAY
+        LDA STK+1,X
+        INX
+        INX
+        STX SCRATCH1
+        LDX ASP
+        >CHK_ASTK_MIN_2 BPLUSLOOP
+        CLC
+        ADC ASTK+1,X
+        STA ASTK+1,X
+        TYA
+        ADC ASTK+2,X
+        STA ASTK+2,X
+        TYA
+        BMI BPLUSLOOP_NEGATIVE
+        CLC
+        LDA ASTK+3,X
+        SBC ASTK+1,X
+        LDA ASTK+4,X
+        SBC ASTK+2,X
+        ASL A
+        LDX SCRATCH1
+        RTS
+BPLUSLOOP_NEGATIVE
+        SEC
+        LDA ASTK+1,X
+        SBC ASTK+3,X
+        LDA ASTK+2,X
+        SBC ASTK+4,X
+        ASL A
+        LDX SCRATCH1
+        RTS
+        >HDLR_STK_UNDERFLOW BPLUSLOOP
+        >HDLR_ASTK_UNDERFLOW BPLUSLOOP
+                              
+;--------------------------------------------------------------------------------------------------------------------------------------------          
+            
+        
+                   
 ABORT_NFA
           .DB $05^$80,'abor',$74^$80
           .DW $0000
@@ -1202,7 +1307,7 @@ ABORT_CFA
           JSR SPSTORE_CFA
           JSR ASPSTORE_CFA
           RTS                         
-                 
+                   
 COLD_NFA ; cold
           .DB $04^$80,'col',$64^$80 
           .DW $0000               
@@ -1225,11 +1330,21 @@ COLD_COPY_LOOP
 COLD_COPY_LOOP_EXIT
           JSR ABORT_CFA 
           JMP TEST
-          
+            
 TEST    
           JSR SPSTORE_CFA
           JSR ASPSTORE_CFA
           JSR LIT_CFA
-          .DW $0000
-          JSR QBRANCH_CFA
+          .DW 10
+          JSR LIT_CFA
+          .DW 0
+          JSR BDO_CFA
+BACK          
+          NOP
+          NOP
+          NOP
+          JSR LIT_CFA
+          .DW 5
+          JSR BPLUSLOOP_CFA
+          BCC BACK
           BRK                		   
