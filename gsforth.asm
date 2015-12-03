@@ -5,13 +5,13 @@
 HDLR_STK_UNDERFLOW .MA HANDLER
 ]1_STK_UNDERFLOW
               LDA #ERR_STKUDR
-              JMP (ORG_ERROR_VCT)
+              JMP (USER_ERROR)
               .EM
            
 HDLR_STK_OVERFLOW  .MA HANDLER
 ]1_STK_OVERFLOW
               LDA #ERR_STKOVR 
-              JMP (ORG_ERROR_VCT)
+              JMP (USER_ERROR)
               .EM 
                             
 CHK_STK_EMPTY .MA   HANDLER
@@ -47,13 +47,13 @@ CHK_STK_MIN_4 .MA   HANDLER
 HDLR_ASTK_UNDERFLOW .MA HANDLER
 ]1_ASTK_UNDERFLOW
               LDA #ERR_ASTKUDR
-              JMP (ORG_ERROR_VCT)
+              JMP (USER_ERROR)
               .EM
            
 HDLR_ASTK_OVERFLOW  .MA HANDLER
 ]1_ASTK_OVERFLOW
               LDA #ERR_ASTKOVR 
-              JMP (ORG_ERROR_VCT)
+              JMP (USER_ERROR)
               .EM 
                             
 CHK_ASTK_EMPTY .MA   HANDLER
@@ -90,6 +90,11 @@ CHK_ASTK_FRE_2 .MA   HANDLER
               CPX #ASTK_TOP+2
               BCC ]1_ASTK_OVERFLOW
               .EM
+              
+LITERAL       .MA   VALUE
+              JSR LIT_CFA
+              .DW ]1
+              .EM              
                          
 OSRDCH        .EQ   $FFE0         
 OSNEWL        .EQ   $FFE7
@@ -105,10 +110,8 @@ ASTK_BOT      .EQ   $6E
 STK           .EQ   STK_TOP 
 ASTK          .EQ   ASTK_TOP
 ; ZERO PAGE REGISTERS
-
-USER_LSB      .EQ   $70
-USER_MSB      .EQ   $71   
-ASP           .EQ   USER_MSB+1
+  
+ASP           .EQ   $70
 SCRATCH1      .EQ   ASP+1
 SCRATCH2      .EQ   SCRATCH1+1
 SCRATCH3      .EQ   SCRATCH2+1
@@ -134,9 +137,15 @@ ERR_FOUND     .EQ   $10
 
 ; MEMORY MAP
 ORIGIN        .EQ   $1900     
-ORG_COLD_VCT  .EQ   ORIGIN
-ORG_WARM_VCT  .EQ   ORG_COLD_VCT+2   
-ORG_ERROR_VCT .EQ   ORG_WARM_VCT+2
+USER_COLD     .EQ   ORIGIN
+USER_WARM     .EQ   USER_COLD + 3   
+USER_ERROR    .EQ   USER_WARM + 3
+
+USER_DP       .EQ   $06
+USER_STATE    .EQ   USER_DP + 2  
+
+
+;USER_DP       .EQ 9
 
           .OR   $8000  
                  
@@ -163,7 +172,7 @@ ROM_LANGUAGE_ENTRY
           RTS
 ROM_LANGUAGE_START
           CLI
-          JMP FORTH_COLD_VCT    
+          JMP ROM_COLD    
 
 ROM_SERVICE_ENTRY 
           CMP #$04
@@ -253,15 +262,17 @@ CORE_WRITESTRING_EXIT
           .DW $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
           .DW $FF,$FF,$FF,$FF,$FF
 
-FORTH_ROM_ORIGIN_SIZE .EQ 9          		   
-FORTH_ROM_ORIGIN
-FORTH_COLD_VCT
-          JMP COLD_CFA            ; COLD START VECTOR
+ROM_ORIGIN_SIZE .EQ 14          		   
+ROM_ORIGIN
+ROM_COLD
+          JMP ROM_COLD            ; COLD START VECTOR
+ROM_WARM_VCT                    
           JMP $0000               ; WARM START VECTOR
+ROM_ERROR          
           JMP $0000               ; ERROR VECTOR
           
-          
-          .DW $0000
+          .DW ORIGIN    ; DP
+          .DW $0000     ; STATE
           .DW $0000
           .DW $0000
           .DW $0000
@@ -503,7 +514,7 @@ FETCH_NO_INC
           >HDLR_STK_UNDERFLOW FETCH
           
 STORE_NFA ; !
-          .DB $01^$80,'!'
+          .DB $01^$80,$21^$80
           .DW FETCH_NFA          
 STORE_CFA
           >CHK_STK_MIN_2 STORE
@@ -695,9 +706,9 @@ UDIVIDE_MODIFY
           >HDLR_STK_UNDERFLOW UDIVIDE         
 UDIVIDE_ZERO
           LDA #ERR_DIVZERO
-          JMP (ORG_ERROR_VCT)     
+          JMP (USER_ERROR)     
           
-MINUS_NFA
+MINUS_NFA ; minus
           .DB $05^$80, 'minu',$73^$80
           .DB UDIVIDE_NFA
 MINUS_CFA
@@ -714,7 +725,7 @@ MINUS_CFA
           RTS
           >HDLR_STK_UNDERFLOW MINUS
           
-DMINUS_NFA
+DMINUS_NFA ; dminus
           .DB $06^$80,'dminu', $73^$80
           .DW MINUS_NFA
 DMINUS_CFA
@@ -765,7 +776,7 @@ ONEMINUS_NOOVERFLOW
           >HDLR_STK_UNDERFLOW ONEMINUS
           
 TWOPLUS_NFA ; 2+
-          .DB $02^$80,'2',$2D^$80
+          .DB $02^$80,'2',$2B^$80
           .DW ONEMINUS_NFA
 TWOPLUS_CFA
           >CHK_STK_EMPTY TWOPLUS
@@ -816,7 +827,7 @@ MIN_END
           >HDLR_STK_UNDERFLOW MIN
           
 MAX_NFA ; max
-          .DB $03^$80,'ma',$6E^$80
+          .DB $03^$80,'ma',$78^$80
           .DW MIN_NFA
 MAX_CFA      
           >CHK_STK_MIN_2 MAX
@@ -891,7 +902,7 @@ DPLUSMINUS_END
           >HDLR_STK_UNDERFLOW DPLUSMINUS
           
 PLUSORIGIN_NFA ; +origin
-          .DB $07^$80,'+origin'
+          .DB $07^$80,'+origi',$6E^$80
           .DW DPLUSMINUS_NFA
 PLUSORIGIN_CFA
           >CHK_STK_EMPTY PLUSORIGIN
@@ -899,10 +910,10 @@ PLUSORIGIN_CFA
           BEQ PLUSORIGIN_STK_UNDERFLOW 
           CLC
           LDA STK+1,X
-          ADC USER_LSB
+          ADC #ORIGIN\256 
           STA STK+1,X
           LDA STK+2,X
-          ADC USER_MSB
+          ADC #ORIGIN/256
           STA STK+2,X
           RTS
           >HDLR_STK_UNDERFLOW PLUSORIGIN
@@ -1037,7 +1048,7 @@ GREATER_FALSE
           >HDLR_STK_UNDERFLOW GREATER
         
 LESS_NFA ; <
-          .DB $04^$80,'les', $73^$80
+          .DB $01^$80,$3C^$80
           .DW GREATER_NFA
 LESS_CFA
           >CHK_STK_MIN_2 LESS
@@ -1195,7 +1206,7 @@ QBRANCH_END
           >HDLR_STK_UNDERFLOW QBRANCH    
    
 BDO_NFA ; (do)
-          .DB $04^$80,'(do',$6F^$80
+          .DB $04^$80,'(do',$29^$80
           .DW QBRANCH_NFA
 BDO_CFA
           >CHK_STK_MIN_2 BDO
@@ -1233,57 +1244,57 @@ BDO_CFA
           >HDLR_ASTK_OVERFLOW BDO
                       
 BLOOP_NFA ; (loop)
-        .DB $06^$80,'(loop',$6F^$80
-        .DW BDO_NFA
+          .DB $06^$80,'(loop',$29^$80
+          .DW BDO_NFA
 BLOOP_CFA
-        TXA
-        TAY
-        LDX ASP
-        >CHK_ASTK_MIN_2 BLOOP
-        INC ASTK+1,X
-        BNE BLOOP_TEST
-        INC ASTK+2,X
+          TXA
+          TAY
+          LDX ASP
+          >CHK_ASTK_MIN_2 BLOOP
+          INC ASTK+1,X
+          BNE BLOOP_TEST
+          INC ASTK+2,X
 BLOOP_TEST
-        CLC
-        LDA ASTK+3,X
-        SBC ASTK+1,X
-        LDA ASTK+4,X
-        SBC ASTK+2,X
-        ASL A
-        TYA
-        TAX
-        RTS
-        >HDLR_ASTK_UNDERFLOW BLOOP
+          CLC
+          LDA ASTK+3,X
+          SBC ASTK+1,X
+          LDA ASTK+4,X
+          SBC ASTK+2,X
+          ASL A
+          TYA
+          TAX
+          RTS
+          >HDLR_ASTK_UNDERFLOW BLOOP
         
-BPLUSLOOP_NFA
-        .DB $07^$80,'(loop+',$6F^$80
-        .DW BLOOP_NFA
+BPLUSLOOP_NFA ; (+loop)
+          .DB $07^$80,'(loop+',$29^$80
+          .DW BLOOP_NFA
 BPLUSLOOP_CFA
-         >CHK_STK_EMPTY BPLUSLOOP
-        LDA STK+2,X
-        TAY
-        LDA STK+1,X
-        INX
-        INX
-        STX SCRATCH1
-        LDX ASP
-        >CHK_ASTK_MIN_2 BPLUSLOOP
-        CLC
-        ADC ASTK+1,X
-        STA ASTK+1,X
-        TYA
-        ADC ASTK+2,X
-        STA ASTK+2,X
-        TYA
-        BMI BPLUSLOOP_NEGATIVE
-        CLC
-        LDA ASTK+3,X
-        SBC ASTK+1,X
-        LDA ASTK+4,X
-        SBC ASTK+2,X
-        ASL A
-        LDX SCRATCH1
-        RTS
+          >CHK_STK_EMPTY BPLUSLOOP
+          LDA STK+2,X
+          TAY
+          LDA STK+1,X
+          INX
+          INX
+          STX SCRATCH1
+          LDX ASP
+          >CHK_ASTK_MIN_2 BPLUSLOOP
+          CLC
+          ADC ASTK+1,X
+          STA ASTK+1,X
+          TYA
+          ADC ASTK+2,X
+          STA ASTK+2,X
+          TYA
+          BMI BPLUSLOOP_NEGATIVE
+          CLC
+          LDA ASTK+3,X
+          SBC ASTK+1,X
+          LDA ASTK+4,X
+          SBC ASTK+2,X
+          ASL A
+          LDX SCRATCH1
+          RTS
 BPLUSLOOP_NEGATIVE
         SEC
         LDA ASTK+1,X
@@ -1295,6 +1306,38 @@ BPLUSLOOP_NEGATIVE
         RTS
         >HDLR_STK_UNDERFLOW BPLUSLOOP
         >HDLR_ASTK_UNDERFLOW BPLUSLOOP
+        
+SZERO_NFA ; s0
+        .DB $02^$80,'s',$30^$80
+        .DW BPLUSLOOP_NFA
+SZERO_CFA
+        >LITERAL STK_BOT
+        RTS
+                 
+AZERO_NFA ; a0
+        .DB $02^$80,'a',$30^$80
+        .DW SZERO_NFA
+AZERO_CFA
+        >LITERAL ASTK_BOT
+        RTS
+        
+DP_NFA ; dp
+        .DB $02^$80,'d', $70^$80
+        .DW AZERO_NFA
+DP_CFA
+        >LITERAL USER_DP
+        JSR PLUSORIGIN_CFA
+        RTS
+        
+STATE_NFA ; state
+        .DB $05^$80,'stat', $65^$80
+        .DW AZERO_NFA
+STATE_CFA
+        >LITERAL USER_STATE
+        JSR PLUSORIGIN_CFA
+        RTS        
+        
+                                 
                               
 ;--------------------------------------------------------------------------------------------------------------------------------------------          
             
@@ -1306,32 +1349,34 @@ ABORT_NFA
 ABORT_CFA
           JSR SPSTORE_CFA
           JSR ASPSTORE_CFA
-          RTS                         
+          JMP TEST2                        
                    
 COLD_NFA ; cold
           .DB $04^$80,'col',$64^$80 
           .DW $0000               
 COLD_CFA
+          JMP USER_COLD
+ROMCOLD          
           LDA #ORIGIN\256
           STA $70
           LDA #ORIGIN/256
           STA $71
-          LDA #FORTH_ROM_ORIGIN\256
+          LDA #ROM_ORIGIN\256
           STA $72
-          LDA #FORTH_ROM_ORIGIN/256
+          LDA #ROM_ORIGIN/256
           STA $73
-          LDY #FORTH_ROM_ORIGIN_SIZE-1
-COLD_COPY_LOOP
-          BMI COLD_COPY_LOOP_EXIT
+          LDY #ROM_ORIGIN_SIZE-1
+ROMCOLD_LOOP
+          BMI ROMCOLD_EXIT
           LDA ($72),Y
           STA ($70),Y
           DEY
-          JMP COLD_COPY_LOOP         
-COLD_COPY_LOOP_EXIT
-          JSR ABORT_CFA 
-          JMP TEST
-            
-TEST    
+          BPL ROMCOLD_LOOP         
+ROMCOLD_EXIT
+          JSR ABORT_CFA  
+TEST
+          JMP ROMCOLD
+TEST2    
           JSR SPSTORE_CFA
           JSR ASPSTORE_CFA
           JSR LIT_CFA
@@ -1340,11 +1385,5 @@ TEST
           .DW 0
           JSR BDO_CFA
 BACK          
-          NOP
-          NOP
-          NOP
-          JSR LIT_CFA
-          .DW 5
-          JSR BPLUSLOOP_CFA
-          BCC BACK
+          JSR DP_CFA
           BRK                		   
