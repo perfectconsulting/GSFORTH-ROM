@@ -140,12 +140,7 @@ ORIGIN        .EQ   $1900
 USER_COLD     .EQ   ORIGIN
 USER_WARM     .EQ   USER_COLD + 3   
 USER_ERROR    .EQ   USER_WARM + 3
-
-USER_DP       .EQ   $06
-USER_STATE    .EQ   USER_DP + 2  
-
-
-;USER_DP       .EQ 9
+FIRST         .EQ   $1A00
 
           .OR   $8000  
                  
@@ -172,7 +167,7 @@ ROM_LANGUAGE_ENTRY
           RTS
 ROM_LANGUAGE_START
           CLI
-          JMP ROM_COLD    
+          JMP BOOT    
 
 ROM_SERVICE_ENTRY 
           CMP #$04
@@ -256,56 +251,85 @@ CORE_WRITESTRING_EXIT
           RTS        
 				  
 				  ; back stop 
-          .DW $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-          .DW $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-          .DW $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-          .DW $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-          .DW $FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+				  .DB $FF,$FF 
+          
 
-ROM_ORIGIN_SIZE .EQ 14          		   
+USER_DP       .EQ   $09
+USER_STATE    .EQ   USER_DP+2  
+USER_TIB      .EQ   USER_STATE+2
+USER_IN       .EQ   USER_TIB+2
+USER_BASE     .EQ   USER_IN+2
+USER_CURRENT  .EQ   USER_BASE+2
+USER_CONTEXT  .EQ   USER_CURRENT+2
+USER_LATEST   .EQ   USER_CONTEXT+2
+USER_WIDTH    .EQ   USER_LATEST+2
+USER_OUT      .EQ   USER_WIDTH+2
+USER_DPL      .EQ   USER_OUT+2
+USER_BLK      .EQ   USER_DPL+2
+USER_SCR      .EQ   USER_BLK+2
+USER_WARNING  .EQ   USER_SCR+2
+USER_LIMIT    .EQ   USER_WARNING+2
+USER_CSP      .EQ   USER_LIMIT+2
+USER_HLD      .EQ   USER_CSP+2
+USER_VOCLINK  .EQ   USER_HLD+2
+USER_CL       .EQ   USER_VOCLINK+2
+USER_FENCE    .EQ   USER_CL+2
+USER_BBUF     .EQ   USER_FENCE+2
+USER_HBUF     .EQ   USER_BBUF+"
+USER_CHANNEL  .EQ   USER_HBUF+"
+USER_USE      .EQ   USER_CHANNEL+2
+USER_PREV     .EQ   USER_USE+2
+USER_FL       .EQ   USER_PREV+2
+
+ROM_ORIGIN_SIZE .EQ 69         		   
 ROM_ORIGIN
-ROM_COLD
-          JMP ROM_COLD            ; COLD START VECTOR
+ROM_COLD_VCT
+          JMP BOOT                ; COLD START VECTOR
 ROM_WARM_VCT                    
           JMP $0000               ; WARM START VECTOR
-ROM_ERROR          
+ROM_ERROR_VCT          
           JMP $0000               ; ERROR VECTOR
           
-          .DW ORIGIN    ; DP
+          .DW FIRST     ; DP
           .DW $0000     ; STATE
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $5000
-          .DW $0000
-          .DW $000A
-          .DW $0000
-          .DW $0000
-          .DW $000C
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0000
+          .DW $0000     ; TIB
+          .DW $0000     ; IN 
+          .DW $000A     ; BASE
+          .DW $0000     ; CURRENT
+          .DW $0000     ; CONTEXT
+          .DW $0000     ; LATEST
+          .DW $0000     ; WIDTH
+          .DW $0000     ; OUT
+          .DW $0000     ; DPL
+          .DW $5000     ; BLK
+          .DW $0000     ; SCR
+          .DW $0000     ; WARNING
+          .DW $0000     ; LIMIT
+          .DW $0000     ; CSP
+          .DW $0000     ; HLD
+          .DW $0000     ; VOC-LINK
+          .DW $0000     ; C/L
+          .DW $0000     ; FENCE
+          .DW $0000     ; B/BUF
+          .DW $0000     ; #BUF
+          .DW $0000     ; CHANNEL
+          .DW $0000     ; USE
+          .DW $0000     ; PREV
+          .DW $0000     ; F/L
           .DW $FFFF
-          .DW $7000
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0040
-          .DW $0000
-          .DW $0400
-          .DW $0004
-          .DW $0000
-          .DW $0000
-          .DW $0000
-          .DW $0028
-CORE_ERROR
+          .DW $FFFF
+          .DW $FFFF
+          .DW $FFFF
+          
                     
           
 DROP_NFA ; drop
@@ -1337,8 +1361,215 @@ STATE_CFA
         JSR PLUSORIGIN_CFA
         RTS        
         
-                                 
-                              
+TIB_NFA ; tib
+        .DB $03^$80,'ti', $62^$80
+        .DW STATE_NFA
+TIB_CFA
+        >LITERAL USER_TIB
+        JSR PLUSORIGIN_CFA
+        RTS                
+                
+IN_NFA ; in
+        .DB $02^$80,'i', $6E^$80
+        .DW TIB_NFA
+IN_CFA
+        >LITERAL USER_TIB
+        JSR PLUSORIGIN_CFA
+        RTS      
+        
+BASE_NFA ; base
+        .DB $04^$80,'bas',$73^$80
+        .DW TIB_NFA
+BASE_CFA
+        >LITERAL USER_BASE
+        JSR PLUSORIGIN_CFA
+        RTS
+        
+CURRENT_NFA ; current
+        .DB $07^$80,'curren',$74^80
+        .DW BASE_NFA
+CURRENT_CFA
+        >LITERAL USER_CURRENT
+        JSR PLUSORIGIN_CFA
+        RTS                                                
+
+CONTEXT_NFA ; context
+        .DB $07^$80,'contex',$74^80
+        .DW CURRENT_NFA
+CONTEXT_CFA
+        >LITERAL USER_CONTEXT
+        JSR PLUSORIGIN_CFA
+        RTS     
+        
+LATEST_NFA ; latest
+        .DB $06^$80,'lates',$74^80
+        .DW CONTEXT_NFA
+LATEST_CFA
+        >LITERAL USER_LATEST
+        JSR PLUSORIGIN_CFA
+        RTS                                                      
+
+WIDTH_NFA ; width
+        .DB $05^80,'widt', $74^$80
+        .DW LATEST_NFA
+WIDTH_CFA
+        >LITERAL USER_WIDTH
+        JSR PLUSORIGIN_CFA
+        RTS                                                      
+
+OUT_NFA ; out
+        .DB $03^$80,'ou',$74^$80
+OUT_CFA
+        >LITERAL USER_OUT
+        JSR PLUSORIGIN_CFA
+        RTS
+                                                                
+DPL_NFA ; dpl
+        .DB $03^$80,'dp', $6C^$80
+        .DW OUT_NFA
+DPL_CFA
+        >LITERAL USER_DPL
+        JSR PLUSORIGIN_CFA
+        RTS       
+
+BLK_NFA ; blk
+        .DB $03^$80,'bl',$6B^$80
+        .DW DPL_NFA
+BLK_CFA
+        >LITERAL USER_BLK
+        JSR PLUSORIGIN_CFA
+        RTS       
+        
+SCR_NFA ; scr
+        .DB $02^$80,'sc',$72^$80
+        .DW BLK_NFA
+SCR_CFA
+        >LITERAL USER_SCR
+        JSR PLUSORIGIN_CFA
+        RTS
+    
+WARNING_NFA ; warning
+        .DB $07^$80,'warnin',$67^$80        
+        .DW SCR_NFA
+WARNING_CFA
+        >LITERAL USER_WARNING
+        JSR PLUSORIGIN_CFA
+        RTS
+        
+LIMIT_NFA ; limit
+        .DB $05^$80,'limi',$74^$80
+        .DW WARNING_NFA
+LIMIT_CFA
+        >LITERAL USER_LIMIT
+        JSR PLUSORIGIN_CFA
+        RTS
+                             
+CSP_NFA ; csp
+        .DB $03^$80, 'cs',$70^$80
+        .DW LIMIT_NFA
+CSP_CFA
+        >LITERAL USER_CSP
+        JSR PLUSORIGIN_CFA
+        RTS
+
+HLD_NFA ; hld
+        .DB $03^$80, 'hl', $64^$80
+        .DW CSP_NFA
+HLD_CFA
+        >LITERAL USER_HLD
+        JSR PLUSORIGIN_CFA
+        RTS
+        
+VOCLINK_NFA ; voc-link
+        .DB $08^$80, 'voc-lin', $6B^$80
+        .DW HLD_NFA
+VOCLINK_CFA
+        >LITERAL USER_VOCLINK
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+CL_NFA ; c/l
+        .DB $03^$80, 'c/', $6C^$80
+        .DW VOCLINK_NFA
+CL_CFA
+        >LITERAL USER_CL
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+FENCE_NFA ; fence
+        .DB $05^$80, 'fenc',$65^$80
+        .DW CL_NFA
+FENCE_CFA
+        >LITERAL USER_FENCE
+        JSR PLUSORIGIN_CFA
+        RTS 
+        
+BBUF_NFA ; b/buf
+        .DB $05^$80, 'b/bu',$66^$80
+        .DW FENCE_NFA
+BBUF_CFA
+        >LITERAL USER_BBUF
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+HBUF_NFA ; '#buf
+        .DB $05^$80, '#bu',$66^$80
+        .DW BBUF_NFA
+HBUF_CFA
+        >LITERAL USER_BBUF
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+CHANNEL_NFA ; channel
+        .DB $07^$80, 'channe',$6C^$80
+        .DW HBUF_NFA
+CHANNEL_CFA
+        >LITERAL USER_CHANNEL
+        JSR PLUSORIGIN_CFA
+        RTS 
+      
+USE_NFA ; use
+        .DB $03^$80, 'us',$65^$80
+        .DW CHANNEL_NFA
+USE_CFA
+        >LITERAL USER_USE
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+PREV_NFA ; prev
+        .DB $04^$80, 'pre',$76^$80
+        .DW USE_NFA
+PREV_CFA
+        >LITERAL USER_PREV
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+FL_NFA ; f/l
+        .DB $03^$80, 'f/',$6C^$80
+        .DW PREV_NFA
+FL_CFA
+        >LITERAL USER_FL
+        JSR PLUSORIGIN_CFA
+        RTS 
+
+BL_NFA ; bl
+        .DB $02^$80,'b',$6C^$80        
+        .DW FL_NFA
+BL_CFA
+        >LITERAL $20
+        RTS
+                
+HERE_NFA ; here
+        .DB $04^$80,'her',$65^$80
+        .DW BL_NFA
+HERE_CFA
+        JSR DP_CFA
+        JSR FETCH_CFA
+        RTS
+                
+                      
+
+
 ;--------------------------------------------------------------------------------------------------------------------------------------------          
             
         
@@ -1356,7 +1587,7 @@ COLD_NFA ; cold
           .DW $0000               
 COLD_CFA
           JMP USER_COLD
-ROMCOLD          
+BOOT          
           LDA #ORIGIN\256
           STA $70
           LDA #ORIGIN/256
@@ -1366,24 +1597,18 @@ ROMCOLD
           LDA #ROM_ORIGIN/256
           STA $73
           LDY #ROM_ORIGIN_SIZE-1
-ROMCOLD_LOOP
-          BMI ROMCOLD_EXIT
+BOOT_LOOP
+          BMI BOOT_EXIT
           LDA ($72),Y
           STA ($70),Y
           DEY
-          BPL ROMCOLD_LOOP         
-ROMCOLD_EXIT
+          BPL BOOT_LOOP         
+BOOT_EXIT
           JSR ABORT_CFA  
 TEST
-          JMP ROMCOLD
-TEST2    
-          JSR SPSTORE_CFA
-          JSR ASPSTORE_CFA
+          JMP BOOT
+TEST2
           JSR LIT_CFA
-          .DW 10
-          JSR LIT_CFA
-          .DW 0
-          JSR BDO_CFA
-BACK          
-          JSR DP_CFA
+          .DW 10        
+          JSR HERE_CFA
           BRK                		   
