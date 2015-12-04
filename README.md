@@ -1,4 +1,4 @@
-# GSFORTH
+# GSFORTH (Rom)
 Generic Subroutine Thread FORTH for the BBC Micro
 =================================================
 
