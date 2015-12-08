@@ -18,12 +18,12 @@ HDLR_STK_OVERFLOW .MA HANDLER
 		.EM
 
 CHK_STK_MIN .MA LEVEL,HANDLER
-		CPX #STK_BOT-2*]1
-		BMI ]2_STK_UNDERFLOW
+		CPX #STK_BOT-]1-]1
+		BPL ]2_STK_UNDERFLOW
 		.EM
 
 CHK_STK_FREE .MA LEVEL,HANDLER
-		CPX #STK_TOP+2*]1
+		CPX #STK_TOP+]1+1]
 		BMI ]2_STK_OVERFLOW
 		.EM
 
@@ -39,13 +39,13 @@ HDLR_ASTK_OVERFLOW .MA HANDLER
 
 CHK_ASTK_MIN .MA LEVEL,HANDLER
 		LDA ASP
-		CMP #ASTK_BOT-2*]1
-		BMI ]2_ASTK_UNDERFLOW
+		CMP #ASTK_BOT-]1-1]
+		BPL ]2_ASTK_UNDERFLOW
 		.EM
 
 CHK_ASTK_FREE .MA LEVEL,HANDLER
 		LDA ASP
-		CPX #ASTK_TOP+2*]1
+		CPX #ASTK_TOP+]1]1
 		BMI ]2_ASTK_OVERFLOW
 		.EM
 
@@ -1638,21 +1638,26 @@ QEOF_FALSE
 		RTS
 		>HDLR_STK_UNDERFLOW QEOF
 
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+PLUS_NFA ;+
+		.DB $01^$80,$2B^$80
+		.DW QEOF_NFA
+PLUS_CFA
+		>CHK_STK_MIN 2,PLUS
+		CLC
+		LDA STK+1,X
+		ADC STK+3,X
+		STA STK+3,X
+		LDA STK+2,X
+		ADC STK+4,X
+		STA STK+4,X
+		INX
+		INX
+		RTS
+		>HDLR_STK_UNDERFLOW PLUS
 
 DPLUS_NFA ;d+
 		.DB $02^$80, 'd', $2B^$80
-		.DW $0000
+		.DW PLUS_NFA
 DPLUS_CFA
 		>CHK_STK_MIN 4, DPLUS
 		CLC
@@ -1951,9 +1956,36 @@ DPLUSMINUS_END
 		RTS
 		>HDLR_STK_UNDERFLOW DPLUSMINUS
 
+STOD_NFA ;s->d
+		.DB $04^$80,'s->',$64^$80
+		.DW DPLUSMINUS_NFA
+STOD_CFA
+		>CHK_STK_MIN 1,STOD
+		>CHK_STK_FREE 1,STOD
+		DEX
+		DEX
+		LDA STK+4,X
+		ASL A
+		BCC STOD_POSITIVE
+		LDA #$FF
+		STA STK+1,X
+		STA STK+2,X
+		RTS
+STOD_POSITIVE
+		LDA #$00
+		STA STK+1,X
+		STA STK+2,X
+		RTS
+		>HDLR_STK_UNDERFLOW STOD
+		>HDLR_STK_OVERFLOW STOD
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 AND_NFA ;and
@@ -2732,6 +2764,8 @@ TEST
 		JMP BOOT
 TEST2
 		JSR SPSTORE_CFA
-		>LITERAL 2
-		JSR DUP_CFA
+		>LITERAL $455
+		>LITERAL 77
+		>LITERAL 1032
+		JSR PLUS_CFA
 		BRK
