@@ -4,7 +4,7 @@
 
 SYSERROR .MA ERROR
 		LDA #]1
-		JMP (USER_ERROR)
+		JMP USER_ERROR
 		.EM
 
 HDLR_STK_UNDERFLOW .MA HANDLER
@@ -19,12 +19,14 @@ HDLR_STK_OVERFLOW .MA HANDLER
 
 CHK_STK_MIN .MA LEVEL,HANDLER
 		CPX #STK_BOT-]1-]1
-		BPL ]2_STK_UNDERFLOW
+		BEQ ]2_STK_EQUAL
+		BCS ]2_STK_UNDERFLOW
+]2_STK_EQUAL
 		.EM
 
 CHK_STK_FREE .MA LEVEL,HANDLER
 		CPX #STK_TOP+]1+1]
-		BMI ]2_STK_OVERFLOW
+		BCC ]2_STK_OVERFLOW
 		.EM
 
 HDLR_ASTK_UNDERFLOW .MA HANDLER
@@ -39,14 +41,16 @@ HDLR_ASTK_OVERFLOW .MA HANDLER
 
 CHK_ASTK_MIN .MA LEVEL,HANDLER
 		LDA ASP
-		CMP #ASTK_BOT-]1-1]
-		BPL ]2_ASTK_UNDERFLOW
+		CMP #ASTK_BOT-]1-]1
+		BEQ ]2_ASTK_EQUAL
+		BCS ]2_ASTK_UNDERFLOW
+]2_ASTK_EQUAL
 		.EM
 
 CHK_ASTK_FREE .MA LEVEL,HANDLER
 		LDA ASP
 		CPX #ASTK_TOP+]1]1
-		BMI ]2_ASTK_OVERFLOW
+		BCC ]2_ASTK_OVERFLOW
 		.EM
 
 LITERAL .MA VALUE
@@ -79,10 +83,10 @@ OSFIND		.EQ $FFCE
 OSWORD		.EQ $FFF1
 OSCLI		.EQ $FFF7
 
-STK_TOP		.EQ $00 ; just a high water mark
-STK_BOT		.EQ $4E
-ASTK_TOP	.EQ $4E ; just a high water makr
-ASTK_BOT	.EQ $6E
+STK_BOT		.EQ $4F
+STK_TOP		.EQ $2F ;just a high water mark
+ASTK_BOT	.EQ $6F
+ASTK_TOP	.EQ $4F ;just a high water mark
 
 ; ZERO PAGE MEMROY
 STK			.EQ STK_TOP
@@ -285,7 +289,7 @@ ROM_COLD_VCT
 ROM_WARM_VCT
 		JMP $0000 ;WARM START VECTOR
 ROM_ERROR_VCT
-		JMP $0000 ;ERROR VECTOR
+		JMP HDLR_SYSERROR ;ERROR VECTOR
 		
 		.DW FIRST ;DP
 		.DW $0000 ;STATE
@@ -348,8 +352,8 @@ QDUP_NFA ;?dup
 		.DB $04^$80,'?du',$70^$80
 		.DW DUP_NFA
 QDUP_CFA
-		>CHK_STK_MIN 1,DUP
-		>CHK_STK_FREE 1,DUP
+		>CHK_STK_MIN 1,QDUP
+		>CHK_STK_FREE 1,QDUP
 		LDA STK+1,X
 		BNE QDUP_DUP
 		LDA STK+2,X
@@ -1979,20 +1983,11 @@ STOD_POSITIVE
 		>HDLR_STK_UNDERFLOW STOD
 		>HDLR_STK_OVERFLOW STOD
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 AND_NFA ;and
 		.DB $03^$80,'an',$64^$80
-		.DW FILL_NFA
+		.DW STOD_NFA
 AND_CFA
-		>CHK_STK_MIN 2, AND
+		>CHK_STK_MIN 2,AND
 		LDA STK+1,X
 		AND STK+3,X
 		STA STK+3,X
@@ -2004,11 +1999,12 @@ AND_CFA
 		RTS
 		>HDLR_STK_UNDERFLOW AND
 
+
 OR_NFA ;or
 		.DB $02^$80,'o',$72^$80
 		.DW AND_NFA
 OR_CFA
-		>CHK_STK_MIN 2, OR
+		>CHK_STK_MIN 2,OR
 		LDA STK+1,X
 		ORA STK+3,X
 		STA STK+3,X
@@ -2024,7 +2020,7 @@ XOR_NFA ;xor
 		.DB $03^$80,'xo',$72^$80
 		.DW OR_NFA
 XOR_CFA
-		>CHK_STK_MIN 2, XOR
+		>CHK_STK_MIN 2,XOR
 		LDA STK+1,X
 		EOR STK+3,X
 		STA STK+3,X
@@ -2054,7 +2050,7 @@ TOGGLE_NFA ;toggle
 		.DB $06^$80,'toggl',$65^$80
 		.DW NOT_NFA
 TOGGLE_CFA
-		>CHK_STK_MIN 2, TOGGLE
+		>CHK_STK_MIN 2,TOGGLE
 		LDA (STK+3,X)
 		EOR STK+1,X
 		STA (STK+3,X)
@@ -2069,7 +2065,7 @@ EQUAL_NFA ;=
 		.DB $01^$80,$3D^$80
 		.DW TOGGLE_NFA
 EQUAL_CFA
-		>CHK_STK_MIN 2, EQUAL
+		>CHK_STK_MIN 2,EQUAL
 		LDA STK+1,X
 		CMP STK+3,X
 		BNE EQUAL_FALSE
@@ -2095,7 +2091,7 @@ GREATER_NFA ;>
 		.DB $01^$80,$3E^$80
 		.DW EQUAL_NFA
 GREATER_CFA
-		>CHK_STK_MIN 2, GREATER
+		>CHK_STK_MIN 2,GREATER
 		SEC
 		LDA STK+1,X
 		SBC STK+3,X
@@ -2121,7 +2117,7 @@ LESS_NFA ;<
 		.DB $01^$80,$3C^$80
 		.DW GREATER_NFA
 LESS_CFA
-		>CHK_STK_MIN 2, LESS
+		>CHK_STK_MIN 2,LESS
 		SEC
 		LDA STK+3,X
 		SBC STK+1,X
@@ -2206,7 +2202,7 @@ UGREATER_NFA ;u>
 		.DB $02^$80, 'u', $3E^$80
 		.DW ZEROEQUALS_NFA
 UGRATER_CFA
-		>CHK_STK_MIN 2, UGREATER
+		>CHK_STK_MIN 2,UGREATER
 		LDA STK+4,X
 		CMP STK+2,X
 		BCC UGREATER_FALSE
@@ -2235,7 +2231,7 @@ ULESS_NFA ;u<
 		.DB $02^$80,'u',$3C^$80
 		.DW UGREATER_NFA
 ULESS_CFA
-		>CHK_STK_MIN 2, ULESS
+		>CHK_STK_MIN 2,ULESS
 		LDA STK+2,X
 		CMP STK+4,X
 		BCC ULESS_FALSE
@@ -2259,7 +2255,7 @@ ULESS_FALSE
 		STA STK+2,X
 		RTS
 		>HDLR_STK_UNDERFLOW ULESS
-		
+
 QBRANCH_NFA ;?branch
 		.DB $07^$80,'?branc',$68^$80
 		.DW ULESS_NFA
@@ -2279,7 +2275,7 @@ BDO_NFA ;(do)
 		.DB $04^$80,'(do',$29^$80
 		.DW QBRANCH_NFA
 BDO_CFA
-		>CHK_STK_MIN 2, BDO
+		>CHK_STK_MIN 2,BDO
 		TXA
 		TAY
 		LDA STK+1,X
@@ -2377,9 +2373,26 @@ BPLUSLOOP_NEGATIVE
 		>HDLR_STK_UNDERFLOW BPLUSLOOP
 		>HDLR_ASTK_UNDERFLOW BPLUSLOOP
 
+LEAVE_NFA ;leave
+		.DB $05^$80,'leav',$65^$80
+		.DW BPLUSLOOP_NFA
+LEAVE_CFA
+		>CHK_ASTK_MIN 2,LEAVE
+		TXA
+		TAY
+		LDX ASP
+		LDA ASTK+3,X
+		STA ASTK+1,X
+		LDA ASTK+4,X
+		STA ASTK+2,X
+		TYA
+		TAX
+		RTS
+		>HDLR_ASTK_UNDERFLOW LEAVE
+
 SZERO_NFA ;s0
 		.DB $02^$80,'s',$30^$80
-		.DW BPLUSLOOP_NFA
+		.DW LEAVE_NFA
 SZERO_CFA
 		>LITERAL STK_BOT
 		RTS
@@ -2469,6 +2482,7 @@ OUT_CFA
 		>LITERAL USER_OUT
 		JSR PLUSORIGIN_CFA
 		RTS
+
 DPL_NFA ;dpl
 		.DB $03^$80,'dp',$6C^$80
 		.DW OUT_NFA
@@ -2654,15 +2668,136 @@ COMMA_CFA
 		JSR STORE_CFA
 		RTS
 
-CCOMMA_NFA
-		.DB $01^$80,'c',$2C^$80
+CCOMMA_NFA ;c,
+		.DB $02^$80,'c',$2C^$80
 		.DW COMMA_NFA
 CCOMMA_CFA
 		JSR HERE_CFA
-		>LITERAL $02
+		>LITERAL $01
 		JSR ALLOT_CFA
 		JSR CSTORE_CFA
 		RTS
+
+JSRCOMMA_NFA ;jsr,
+		.DB $04^$80,'jsr',$2C^$80
+		.DW CCOMMA_NFA
+JSRCOMMA_CFA
+		>LITERAL $20
+		JSR CCOMMA_CFA
+		JSR COMMA_CFA
+		RTS
+
+RTSCOMMA_NFA ;rts,
+		.DB $04^$80,'rts',$2C^$80
+		.DW JSRCOMMA_NFA
+RTSCOMMA_CFA
+		>LITERAL $60
+		JSR CCOMMA_CFA
+		RTS
+
+CLCCOMMA_NFA ;clc,
+		.DB $04^$80,'clc',$2C^$80
+		.DW RTSCOMMA_NFA
+CLCCOMMA_CFA
+		>LITERAL $18
+		JSR CCOMMA_CFA
+		RTS
+
+BCCCOMMA_NFA ;bcc,
+		.DB $04^$80,'bcc',$2C^$80
+		.DW CLCCOMMA_NFA
+BCCCOMMA_CFA
+		>LITERAL $90
+		JSR CCOMMA_CFA
+		JSR CCOMMA_CFA
+		RTS
+
+BCSCOMMA_NFA ;bcs,
+		.DB $04^$80,'bcs',$2C^$80
+		.DW BCCCOMMA_NFA
+BCSCOMMA_CFA
+		>LITERAL $B0
+		JSR CCOMMA_CFA
+		JSR CCOMMA_CFA
+		RTS
+
+BEQCOMMA_NFA ;beq,
+		.DB $04^$80,'beq',$2C^$80
+		.DW BCSCOMMA_NFA
+BEQCOMMA_CFA
+		>LITERAL $F0
+		JSR CCOMMA_CFA
+		JSR CCOMMA_CFA
+		RTS
+
+BNECOMMA_NFA ;bne,
+		.DB $04^$80,'bne',$2C^$80
+		.DW BEQCOMMA_NFA
+BNECOMMA_CFA
+		>LITERAL $D0
+		JSR CCOMMA_CFA
+		JSR CCOMMA_CFA
+		RTS
+
+ABS_NFA ;abs
+		.DB $03^$80,'ab',$73^$80
+		.DW BNECOMMA_NFA
+ABS_CFA
+		JSR DUP_CFA
+		JSR PLUSMINUS_CFA
+		RTS
+
+DABS_NFA ;dabs
+		.DB $04^$80,'dab',$73^$80
+		.DW ABS_NFA
+DABS_CFA
+		JSR DUP_CFA
+		JSR DPLUSMINUS_CFA
+		RTS
+
+MINUSADD_NFA ;-
+		.DB $01^$80,$2D^$80
+		.DW DABS_NFA
+MINUSADD_CFA
+		JSR MINUS_CFA
+		JSR PLUS_CFA
+		RTS
+
+DMINUSADD_NFA ;d-
+		.DB $02^$80,'d',$2D^$80
+		.DW MINUSADD_NFA
+DMINUSADD_CFA
+		JSR DMINUS_CFA
+		JSR DPLUS_CFA
+		RTS
+
+MTIMES_NFA ;m*
+		.DB $02^$80,'m',$2A^$80
+		.DW DMINUSADD_NFA
+MTIMES_CFA
+		JSR OVER_CFA
+		JSR OVER_CFA
+		JSR XOR_CFA
+		JSR TOA_CFA
+		JSR ABS_CFA
+		JSR SWAP_CFA
+		JSR ABS_CFA
+		JSR UTIMES_CFA
+		JSR AFROM_CFA
+		JSR DPLUSMINUS_CFA
+		RTS
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
 
 ; TO DO
 QERROR_CFA
@@ -2670,10 +2805,12 @@ QERROR_CFA
 
 
 HDLR_SYSERROR
-		STA SCRATCH1
+		TAY
+		LDA #'?'
+		JSR OSWRCH
 		JSR SPSTORE_CFA
 		JSR APSTORE_CFA
-		LDA SCRATCH1
+		TYA
 		BMI HDLR_SYSERROR_UNKNOWN
 		CMP #ERR_LAST+1
 		BMI HDLR_SYSERROR_CALC
@@ -2685,10 +2822,10 @@ HDLR_SYSERROR_CALC
 		JSR UTIMES_CFA
 		JSR DROP_CFA
 		>LITERAL SYSERROR_MESSAGES
-		; MISSING
-		;SR PLUS_CFA
-		;JSR COUNT_CFA
-		;JSR TYPE
+		JSR PLUS_CFA
+		JSR COUNT_CFA
+		JSR TYPE_CFA
+		BRK
 		;JMP QUIT
 		BRK
 SYSERROR_MESSAGES
@@ -2697,7 +2834,7 @@ SYSERROR_00
 SYSERROR_01
         .DB 25,"Parameter stack overflow.      "
 SYSERROR_02
-        .DB 25,"Parameter stack underlow.      "
+        .DB 25,"Parameter stack underflow.     "
 SYSERROR_03
         .DB 25,"Auxiliary stack overflow.      "
 SYSERROR_04
@@ -2733,6 +2870,8 @@ ABORT_NFA
 		.DB $05^$80,'abor',$74^$80
 		.DW $0000
 ABORT_CFA
+		LDA #'2'
+		JSR OSWRCH
 		JSR SPSTORE_CFA
 		JSR APSTORE_CFA
 		JMP TEST2
@@ -2743,6 +2882,8 @@ COLD_NFA ;cold
 COLD_CFA
 		JMP USER_COLD
 BOOT
+		LDA #'1'
+		JSR OSWRCH
 		LDA #ORIGIN\256
 		STA $70
 		LDA #ORIGIN/256
@@ -2763,7 +2904,12 @@ BOOT_EXIT
 TEST
 		JMP BOOT
 TEST2
-		JSR SPSTORE_CFA
+		LDA #'3'
+		JSR OSWRCH
+		>LITERAL $2A
+		JSR EMIT_CFA
+		JSR DUP_CFA
+		BRK
 		>LITERAL $455
 		>LITERAL 77
 		>LITERAL 1032
