@@ -299,12 +299,12 @@ ROM_ERROR_VCT
 		.DW $0000 ;CURRENT
 		.DW $0000 ;CONTEXT
 		.DW $0000 ;LATEST
-		.DW $0000 ;WIDTH
+		.DW $0020 ;WIDTH
 		.DW $0000 ;OUT
 		.DW $0000 ;DPL
 		.DW $5000 ;BLK
 		.DW $0000 ;SCR
-		.DW $0000 ;WARNING
+		.DW $FFFF ;WARNING
 		.DW $0000 ;LIMIT
 		.DW $0000 ;CSP
 		.DW $0000 ;HLD
@@ -2882,7 +2882,7 @@ BNUMBER_NFA ;(number)
 		.DW MDIVMOD_NFA
 BNUMBER_CFA
 BNUMBER_NUMWHILE
-		JSR ONEADD_CFA _CFA
+		JSR ONEADD_CFA
 		JSR DUP_CFA
 		JSR TOA_CFA
 		JSR CFETCH_CFA
@@ -2906,6 +2906,7 @@ BNUMBER_NUMWHILE
 		JSR ONEADD_CFA
 		JSR QBRANCH_CFA
 		BEQ BNUMBER_NUMIFEND
+		>LITERAL $01
 		JSR DPL_CFA
 		JSR PLUSSTORE_CFA
 BNUMBER_NUMIFEND
@@ -2920,11 +2921,13 @@ NUMBER_NFA ;number
 		.DB $06^$80,'numbe',$72^$80
 		.DW BNUMBER_NFA
 NUMBER_CFA
+		>LITERAL $00
 		JSR DUP_CFA
 		JSR ROT_CFA
 		JSR DUP_CFA
 		JSR ONEADD_CFA
 		JSR CFETCH_CFA
+		>LITERAL $2D
 		JSR EQUAL_CFA
 		JSR DUP_CFA
 		JSR TOA_CFA
@@ -2932,21 +2935,26 @@ NUMBER_CFA
 		BEQ NUMBER_NOTMINUS
 		JSR ONEADD_CFA
 NUMBER_NOTMINUS
+		>LITERAL $FFFF
 NUMBER_NUMWHILE
 		JSR DPL_CFA
 		JSR STORE_CFA
 		JSR BNUMBER_CFA
 		JSR DUP_CFA
 		JSR CFETCH_CFA
+		>LITERAL $20
 		JSR MINUS_CFA
 		JSR ADD_CFA
 		JSR QBRANCH_CFA
 		BEQ NUMBER_WHILEEND
 		JSR DUP_CFA
 		JSR CFETCH_CFA
+		>LITERAL $2E
 		JSR SUB_CFA
 		>LITERAL ERR_MISLEX
-		JSR QERROR_CFA
+NUMBER_EPATCH
+		JSR $0000
+		>LITERAL $00
 		CLC
 		BCC NUMBER_NUMWHILE
 NUMBER_WHILEEND
@@ -2971,7 +2979,7 @@ WORD_CFA
 		>LITERAL $3FFF
 		JSR AND_CFA
 WORD_BPATCH
-		JSR BLOCK_CFA
+		JSR $0000
 		CLC
 		BCC WORD_WORDEND
 WORD_WORDELSE
@@ -2984,6 +2992,7 @@ WORD_WORDEND
 		JSR SWAP_CFA
 		JSR ENCLOSE_CFA
 		JSR HERE_CFA
+		>LITERAL $22
 		JSR BLANKS_CFA
 		JSR IN_CFA
 		JSR PLUSSTORE_CFA
@@ -3047,7 +3056,80 @@ LITERAL_CFA
 LITERAL_ENDLIT
 		RTS
 
+DLITERAL_NFA ;dliteral
+		.DB $08^$C0,'dlitera',$6C^$80
+		.DW LITERAL_NFA
+DLITERAL_CFA
+		JSR STATE_CFA
+		JSR FETCH_CFA
+		JSR QBRANCH_CFA
+		BEQ DLITERAL_END
+		JSR SWAP_CFA
+		JSR LITERAL_CFA
+		JSR LITERAL_CFA
+DLITERAL_END
+		RTS
 
+SMESSAGE_NFA ;$message
+		.DB $08^$80,'$messag',$65^$80
+		.DW DLITERAL_NFA
+SMESSAGE_CFA
+		>LITERAL 32
+		JSR UMUL_CFA
+		JSR DROP_CFA
+		>LITERAL ERROR_MESSAGE_00
+		JSR ADD_CFA
+		RTS
+ERROR_MESSAGE_00
+        .DB 09,"OS error.                      "
+ERROR_MESSAGE_01
+        .DB 25,"Parameter stack overflow.      "
+ERROR_MESSAGE_02
+        .DB 26,"Parameter stack underflow.     "
+ERROR_MESSAGE_03
+        .DB 25,"Auxiliary stack overflow.      "
+ERROR_MESSAGE_04
+        .DB 26,"Auxiliary stack underflow.     "
+ERROR_MESSAGE_05
+        .DB 19,"Mis-matched lexeme.            "
+ERROR_MESSAGE_06
+        .DB 20,"Can't divid by zero.           "
+ERROR_MESSAGE_07
+        .DB 13,"isn't unique.                  "
+ERROR_MESSAGE_08
+        .DB 16,"Dictionary full.               "
+ERROR_MESSAGE_09
+        .DB 24,"Definition not finished.       "
+ERROR_MESSAGE_10
+        .DB 15,"Execution only.                "
+ERROR_MESSAGE_11
+        .DB 17,"Compilation only.              "
+ERROR_MESSAGE_12
+        .DB 22,"Use only when loading.         "
+ERROR_MESSAGE_13
+        .DB 24,"Conditionals not paired.       "
+ERROR_MESSAGE_14
+        .DB 27,"Can't redefine end-of-line.    "
+ERROR_MESSAGE_15
+        .DB 24,"In protected vocabulary.       "
+ERROR_MESSAGE_16
+        .DB 15,"File not found.                "
+
+MESSAGE_NFA ;message
+		.DB $07^$80,'messag',$65^$80
+		.DW SMESSAGE_NFA
+MESSAGE_CFA
+		JSR WARNING_CFA
+		JSR FETCH_CFA
+		JSR QBRANCH_CFA
+		BNE MESSAGE_DISMESS
+		JSR DROP_CFA
+		RTS
+MESSAGE_DISMESS
+		JSR SMESSAGE_CFA
+		JSR COUNT_CFA
+		JSR TYPE_CFA
+		RTS
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3069,8 +3151,6 @@ BLOCK_CFA
 
 HDLR_SYSERROR
 		TAY
-		LDA #'?'
-		JSR OSWRCH
 		JSR SPSTORE_CFA
 		JSR APSTORE_CFA
 		TYA
@@ -3081,51 +3161,13 @@ HDLR_SYSERROR_UNKNOWN
 		LDA #$00
 HDLR_SYSERROR_CALC
 		>PUSH_A
-		>LITERAL 32
-		JSR UMUL_CFA
-		JSR DROP_CFA
-		>LITERAL SYSERROR_MESSAGES
-		JSR ADD_CFA
+		JSR SMESSAGE_CFA
 		JSR COUNT_CFA
 		JSR TYPE_CFA
 		BRK
 		;JMP QUIT
 		BRK
-SYSERROR_MESSAGES
-SYSERROR_00
-        .DB 23,"Unknown message number.        "
-SYSERROR_01
-        .DB 25,"Parameter stack overflow.      "
-SYSERROR_02
-        .DB 25,"Parameter stack underflow.     "
-SYSERROR_03
-        .DB 25,"Auxiliary stack overflow.      "
-SYSERROR_04
-        .DB 26,"Auxiliary stack underflow.     "
-SYSERROR_05
-        .DB 19,"Mis-matched lexeme.            "
-SYSERROR_06
-        .DB 20,"Can't divid by zero.           "
-SYSERROR_07
-        .DB 13,"isn't unique.                  "
-SYSERROR_08
-        .DB 16,"Dictionary full.               "
-SYSERROR_09
-        .DB 24,"Definition not finished.       "
-SYSERROR_10
-        .DB 15,"Execution only.                "
-SYSERROR_11
-        .DB 17,"Compilation only.              "
-SYSERROR_12
-        .DB 22,"Use only when loading.         "
-SYSERROR_13
-        .DB 24,"Conditionals not paired.       "
-SYSERROR_14
-        .DB 27,"Can't redefine end-of-line.    "
-SYSERROR_15
-        .DB 24,"In protected vocabulary.       "
-SYSERROR_16
-        .DB 15,"File not found.                "
+
 
 ;--------------------------------------------------------------------------------------------------------------------------------------------		
 
@@ -3157,7 +3199,6 @@ BOOT
 		STA $73
 		LDY #ROM_ORIGIN_SIZE-1
 BOOT_LOOP
-		BMI BOOT_EXIT
 		LDA ($72),Y
 		STA ($70),Y
 		DEY
@@ -3169,12 +3210,6 @@ TEST
 TEST2
 		LDA #'3'
 		JSR OSWRCH
-		>LITERAL $2A
-		JSR EMIT_CFA
-		JSR DUP_CFA
-		BRK
-		>LITERAL $455
-		>LITERAL 77
-		>LITERAL 1032
-		JSR ADD_CFA
+		>LITERAL $2
+		JSR MESSAGE_CFA
 		BRK
