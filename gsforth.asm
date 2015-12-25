@@ -291,9 +291,9 @@ ROM_ORIGIN
 
 ROM_USER_START
 ROM_COLD_VCT
-		.DW BOOT ;START VECTOR
+		.DW COLD_START ;COLD START VECTOR
 ROM_WARM_VCT
-		.DW $0000 ;WARM START VECTOR
+		.DW WARM_START ;WARM START VECTOR
 ROM_ERROR_VCT
 		.DW HDLR_SYSERROR ;ERROR VECTOR
 		
@@ -4527,23 +4527,95 @@ USING_NOCHANNEL
 		JSR STORE_CFA
 		RTS
 
+DISCARD_NFA ;discard
+		.DB $07^$80,'discar',$64^$80
+		.DW USING_NFA
+DISCARD_CFA
+		JSR FLUSH_CFA
+		JSR CHANNEL_CFA
+		JSR FETCH_CFA
+		JSR CLOSE_CFA
+		>LITERAL $00
+		JSR CHANNEL_CFA
+		JSR STORE_CFA
+		JSR EMPTYMINUSBUFFERS_CFA
+		RTS
 
+ABORT_NFA ;abort
+		.DB $05^$80,'abor',$74^$80
+		.DW DISCARD_NFA
+ABORT_CFA
+		JSR SPSTORE_CFA
+		JSR APSTORE_CFA
+		JSR DECIMAL_CFA
+		JSR SLIT_CFA
+		.DB $22, 'Generic Subroutine-Threaded FORTH.'
+		JSR COUNT_CFA
+		JSR TYPE_CFA
+		JSR CR_CFA
+		JSR SLIT_CFA
+		.DB $1D,'BBC Model ',$27,'B',$27,' Implementation.'
+		JSR COUNT_CFA
+		JSR TYPE_CFA
+		JSR CR_CFA
+		JSR SLIT_CFA
+ 		.DB $0C,'Version 1.06'
+		JSR COUNT_CFA
+		JSR TYPE_CFA
+		JSR CR_CFA
+		JSR EMPTYMINUSBUFFERS_CFA
+		JMP QUIT_CFA
 
+WARM_NFA ;warm
+		.DB $04^$80,'war',$6D^$80
+		.DW ABORT_NFA
+WARM_CFA
+		JMP (USER_WARM)
+WARM_START
+		LDY #USER_CURRENT
+		LDA #FORTH_RELOCATION\256
+		STA (UP),Y
+		INY
+		LDA #FORTH_RELOCATION/256
+		STA (UP),Y
+		LDY #USER_CONTEXT
+		LDA #FORTH_RELOCATION\256
+		STA (UP),Y
+		INY
+		LDA #FORTH_RELOCATION/256
+		STA ($70),Y
+		JMP ABORT_CFA
 
+COLD_NFA ;cold
+		.DB $04^$80,'col',$64^$80
+		.DW WARM_NFA
+COLD_CFA
+		JMP (USER_COLD)
+COLD_START
+BOOT
+		LDA #ORIGIN\256
+		STA $70
+		LDA #ORIGIN/256
+		STA $71
+		LDA #ROM_ORIGIN\256
+		STA $72
+		LDA #ROM_ORIGIN/256
+		STA $73
+		LDY #ROM_USER_END-ROM_USER_START-1
+BOOT_LOOP
+		LDA ($72),Y
+		STA ($70),Y
+		DEY
+		BPL BOOT_LOOP
+BOOT_EXIT
+		LDA #HDLR_BRKERROR\256
+		STA $202
+		LDA #HDLR_BRKERROR/256
+		STA $203
+		JMP ABORT_CFA
 
-
-FINAL_NFA	.EQ USING_NFA
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
+HDLR_BRKERROR
+		LDA #$00
 HDLR_SYSERROR
 		TAY
 		JSR SPSTORE_CFA
@@ -4562,49 +4634,6 @@ HDLR_SYSERROR_CALC
 		JMP QUIT_CFA
 		BRK
 
+FINAL_NFA	.EQ COLD_NFA
 
-;--------------------------------------------------------------------------------------------------------------------------------------------		
 
-ABORT_NFA
-		.DB $05^$80,'abor',$74^$80
-		.DW $0000
-ABORT_CFA
-		JSR SPSTORE_CFA
-		JSR APSTORE_CFA
-		JMP QUIT_CFA
-		;JMP TEST2
-
-COLD_NFA ;cold
-		.DB $04^$80,'col',$64^$80
-		.DW $0000
-COLD_CFA
-		JMP USER_COLD
-BOOT
-		LDA #ORIGIN\256
-		STA $70
-		LDA #ORIGIN/256
-		STA $71
-		LDA #ROM_ORIGIN\256
-		STA $72
-		LDA #ROM_ORIGIN/256
-		STA $73
-		LDY #ROM_USER_END-ROM_USER_START-1
-BOOT_LOOP
-		LDA ($72),Y
-		STA ($70),Y
-		DEY
-		BPL BOOT_LOOP
-BOOT_EXIT
-		JSR ABORT_CFA
-TEST
-		JMP BOOT
-v		
-TEST2
-		LDX #TEXT\256
-		LDY #TEXT/256
-		JSR OSCLI
-		BRK
-TEXT
-		.DB "*CAT", $0D
-		
-		
