@@ -2482,7 +2482,7 @@ BLK_CFA
 		RTS
 
 SCR_NFA ;scr
-		.DB $02^$80,'sc',$72^$80
+		.DB $03^$80,'sc',$72^$80
 		.DW BLK_NFA
 SCR_CFA
 		>LITERAL USER_SCR
@@ -4009,7 +4009,7 @@ COMPILE_CFA
 		RTS
 
 BCOMPILE_NFA ;[compile]
-		.DB $09^$60,'[compile',$5D^$80
+		.DB $09^$80,'[compile',$5D^$80
 		.DW COMPILE_NFA
 BCOMPILE_CFA
 		JSR QCOMP_CFA
