@@ -4009,7 +4009,7 @@ COMPILE_CFA
 		RTS
 
 BCOMPILE_NFA ;[compile]
-		.DB $09^$80,'[compile',$5D^$80
+		.DB $09^$C0,'[compile',$5D^$80
 		.DW COMPILE_NFA
 BCOMPILE_CFA
 		JSR QCOMP_CFA
