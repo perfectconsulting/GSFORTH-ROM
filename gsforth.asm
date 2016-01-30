@@ -4907,22 +4907,21 @@ MODE_CFA
 		JSR LIMIT_CFA
 		JSR STORE_CFA
 		JSR EMPTYMINUSBUFFERS_CFA
-		JSR TWOMUL_CFA
 		>LITERAL MODE_COLUMNS_TABLE
 		JSR ADD_CFA
-		JSR FETCH_CFA
+		JSR CFETCH_CFA
 		JSR CL_CFA
 		JSR STORE_CFA
 		RTS
 MODE_COLUMNS_TABLE
-		.DW 80 ;mode 0
-		.DW 40 ;mode 1
-		.DW 20 ;mode 2
-		.DW 80 ;mode 3
-		.DW 40 ;mode 4
-		.DW 20 ;mode 5
-		.DW 40 ;mode 6
-		.DW 40 ;mode 7
+		.DB 80 ;mode 0
+		.DB 40 ;mode 1
+		.DB 20 ;mode 2
+		.DB 80 ;mode 3
+		.DB 40 ;mode 4
+		.DB 20 ;mode 5
+		.DB 40 ;mode 6
+		.DB 40 ;mode 7
 		RTS
 
 CLS_NFA ; cls
