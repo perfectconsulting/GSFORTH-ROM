@@ -87,6 +87,7 @@ OSWRCH		.EQ $FFEE
 OSGBPB		.EQ $FFD1
 OSBPUT		.EQ $FFD4
 OSBGET		.EQ $FFD7
+OSARGS		.EQ $FFDA
 OSFIND		.EQ $FFCE
 OSWORD		.EQ $FFF1
 OSBYTE		.EQ $FFF4
@@ -142,9 +143,10 @@ ERR_FENCE	.EQ $0F
 ERR_FFOUND	.EQ $10
 ERR_FEXITS	.EQ $11
 ERR_WORD	.EQ $12
+ERR_NOFILE	.EQ $13
 
 ERR_FIRST	.EQ $00
-ERR_LAST	.EQ $12
+ERR_LAST	.EQ $13
 
 ; MEMORY MAP
 
@@ -1697,10 +1699,52 @@ OSCLI_MOVE
 		INX
 		RTS
 		>HDLR_STK_UNDERFLOW OSCLI
+		
+OSFIND_NFA
+		.DB $06^$80,'osfin',$64^$80
+		.DW OSCLI_NFA
+OSFIND_CFA
+		>CHK_STK_MIN 3,OSFIND
+		STX SCRATCH1
+		LDA STK+3,X
+		STA SCRATCH2
+		LDA STK+1,X
+		LDY STK+5,X
+		LDX SCRATCH2
+		JSR OSFIND
+		STX SCRATCH2
+		LDX SCRATCH1
+		STA STK+1,X
+		STY STK+5,X
+		LDA SCRATCH2
+		STA STK+3,X
+		RTS
+		>HDLR_STK_UNDERFLOW OSFIND
+
+OSARGS_NFA
+		.DB $06^$80,'osarg',$73^$80
+		.DW OSFIND_NFA
+OSARGS_CFA
+		>CHK_STK_MIN 3,OSARGS
+		STX SCRATCH1
+		LDA STK+3,X
+		STA SCRATCH2
+		LDA STK+1,X
+		LDY STK+5,X
+		LDX SCRATCH2
+		JSR OSARGS
+		STX SCRATCH2
+		LDX SCRATCH1
+		STA STK+1,X
+		STY STK+5,X
+		LDA SCRATCH2
+		STA STK+3,X
+		RTS
+		>HDLR_STK_UNDERFLOW OSARGS
 
 QEOF_NFA ;?eof
 		.DB $04^$80,'?eo',$66^$80
-		.DW OSCLI_NFA
+		.DW OSARGS_NFA
 QEOF_CFA
 		>CHK_STK_MIN 1,QEOF
 		TXA
@@ -3228,43 +3272,45 @@ SMESSAGE_TYPE
 		JSR ADD_CFA
 		RTS
 ERROR_MESSAGE_00
-        .DB 14,"Unknown error.                 "
+		.DB 14,"Unknown error.                 "
 ERROR_MESSAGE_01
-        .DB 25,"Parameter stack overflow.      "
+		.DB 25,"Parameter stack overflow.      "
 ERROR_MESSAGE_02
-        .DB 26,"Parameter stack underflow.     "
+		.DB 26,"Parameter stack underflow.     "
 ERROR_MESSAGE_03
-        .DB 25,"Auxiliary stack overflow.      "
+		.DB 25,"Auxiliary stack overflow.      "
 ERROR_MESSAGE_04
-        .DB 26,"Auxiliary stack underflow.     "
+		.DB 26,"Auxiliary stack underflow.     "
 ERROR_MESSAGE_05
-        .DB 14,"isn't defined.                 "
+		.DB 14,"isn't defined.                 "
 ERROR_MESSAGE_06
-        .DB 20,"Can't divid by zero.           "
+		.DB 20,"Can't divid by zero.           "
 ERROR_MESSAGE_07
-        .DB 13,"isn't unique.                  "
+		.DB 13,"isn't unique.                  "
 ERROR_MESSAGE_08
-        .DB 16,"Dictionary full.               "
+		.DB 16,"Dictionary full.               "
 ERROR_MESSAGE_09
-        .DB 24,"Definition not finished.       "
+		.DB 24,"Definition not finished.       "
 ERROR_MESSAGE_10
-        .DB 15,"Execution only.                "
+		.DB 15,"Execution only.                "
 ERROR_MESSAGE_11
-        .DB 17,"Compilation only.              "
+		.DB 17,"Compilation only.              "
 ERROR_MESSAGE_12
-        .DB 22,"Use only when loading.         "
+		.DB 22,"Use only when loading.         "
 ERROR_MESSAGE_13
-        .DB 24,"Conditionals not paired.       "
+		.DB 24,"Conditionals not paired.       "
 ERROR_MESSAGE_14
-        .DB 27,"Can't redefine end-of-line.    "
+		.DB 27,"Can't redefine end-of-line.    "
 ERROR_MESSAGE_15
-        .DB 24,"In protected vocabulary.       "
+		.DB 24,"In protected vocabulary.       "
 ERROR_MESSAGE_16
-        .DB 15,"File not found.                "
+		.DB 15,"File not found.                "
 ERROR_MESSAGE_17
-        .DB 12,"File exists.                   "
+		.DB 12,"File exists.                   "
 ERROR_MESSAGE_18
-        .DB 14,"Word expected.                 "
+		.DB 14,"Word expected.                 "
+ERROR_MESSAGE_19
+		.DB 14,"File not open.                 "
 
 MESSAGE_NFA ;message
 		.DB $07^$80,'messag',$65^$80
