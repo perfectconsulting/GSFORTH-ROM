@@ -3236,7 +3236,7 @@ ERROR_MESSAGE_20
 ERROR_MESSAGE_21
 		.DB 19,"Block out of range.            "
 ERROR_MESSAGE_22
-		.DB 21,"Vocabulary mis-match.          "
+		.DB 16,"Vocabulary mis-match.          "
 MESSAGE_NFA ;message
 		.DB $07^$80,'messag',$65^$80
 		.DW SMESSAGE_NFA
@@ -3777,6 +3777,15 @@ FORGET_CFA
 		JSR QERROR_CFA
 
 		JSR TICK_CFA
+		JSR DUP_CFA
+		JSR CURRENT_CFA
+		JSR FETCH_CFA
+		>CLITERAL $06
+		JSR SUB_CFA
+		JSR EQUAL_CFA
+		>LITERAL ERR_VOCAB
+		JSR QERROR_CFA
+
 
 		; check if forget in rom space?
 		JSR DUP_CFA
@@ -3806,6 +3815,7 @@ FORGET_CFA
 		JSR DP_CFA
 		JSR STORE_CFA
 		RTS
+		
 		
 COLON_NFA ;:
 		.DB $01^$C0,$3A^$80
