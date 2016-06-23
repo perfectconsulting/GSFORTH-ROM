@@ -345,7 +345,7 @@ ROM_USER_START
 		.DW $0028 ;C/L
 		.DW $0000 ;FENCE
 		.DW $0400 ;B/BUF
-		.DW $0004 ;#BUF
+		.DW $0001 ;#BUF
 		.DW $0000 ;CHANNEL
 		.DW $0000 ;PREV
 		.DW $FFFF
@@ -3250,7 +3250,7 @@ ERROR_MESSAGE_20
 ERROR_MESSAGE_21
 		.DB 19,"Block out of range.            "
 ERROR_MESSAGE_22
-		.DB 16,"Vocabulary mis-match.          "
+		.DB 21,"Vocabulary mis-match.          "
 MESSAGE_NFA ;message
 		.DB $07^$80,'messag',$65^$80
 		.DW SMESSAGE_NFA
