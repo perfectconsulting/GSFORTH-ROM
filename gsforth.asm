@@ -4315,8 +4315,8 @@ RSLASHW_NFA ;r/w
 		.DB $03^$80,'r/',$77^$80
 		.DW I_NFA
 RSLASHW_CFA
-		JSR ONESUB_CFA
 		JSR TOA_CFA
+		JSR ONESUB_CFA
 		JSR BSLASHBUF_CFA
 		JSR FETCH_CFA
 		JSR UMUL_CFA
@@ -4384,31 +4384,23 @@ QBUF_CFA
 		JSR PLUSBUF_CFA
 		RTS
 
-QUPDATE_NFA ;?update ( a -- ) -check if the buffer need to be written to disk
-		.DB $07^$80,'?updat',$65^$80
+BFLUSH_NFA ;(flush) ( a -- ) -write buffer to disk
+		.DB $07^$80,'(flush',$29^$80
 		.DW QBUF_NFA
-QUPDATE_CFA
-		JSR DUP_CFA
-		JSR FETCH_CFA
-		JSR ZEROLESS_CFA
-		JSR ZEROBRANCH_CFA
-		BEQ QUPDATE_END
-		JSR DUP_CFA
-		JSR TWOADD_CFA
-		JSR SWAP_CFA
-		JSR FETCH_CFA
-		>LITERAL $3FFF
-		JSR AND_CFA
-		>CLITERAL $00
+BFLUSH_CFA
+		JSR DUP_CFA		( a -- a a )
+		JSR TWOADD_CFA	( a -- a a+2 )
+		JSR SWAP_CFA	( a a+2 -- a+2 a )
+		JSR FETCH_CFA	( a+2 a -- a+2 a )
+		>LITERAL $3FFF	( a+2 a -- a+2 a n )
+		JSR AND_CFA		( a+2 a n -- a+2 n )
+		>CLITERAL $00	( a+2 n -- a+2 n 0 )
 		JSR RSLASHW_CFA
-		RTS
-QUPDATE_END
-		JSR DROP_CFA
 		RTS
 
 BUFFER_NFA ;buffer ( n -- ) assign the next free buffer to n. and write any prending updates
 		.DB $06^$80,'buffe',$72^$80
-		.DW QUPDATE_NFA
+		.DW BFLUSH_NFA
 BUFFER_CFA
 		JSR QBUF_CFA
 		JSR DUP_CFA
@@ -4417,7 +4409,7 @@ BUFFER_CFA
 		JSR ZEROBRANCH_CFA
 		BEQ BUFFER_END
 		JSR DUP_CFA
-		JSR QUPDATE_CFA
+		JSR BFLUSH_CFA
 BUFFER_END
 		JSR SWAP_CFA
 		>LITERAL $4000
@@ -4493,7 +4485,10 @@ DOTBUFFERS_NOTPREV
 		JSR UDOT_CFA
 		>CLITERAL $28
 		JSR EMIT_CFA
-		JSR UDOT_CFA
+		>CLITERAL $26
+		JSR EMIT_CFA
+		>CLITERAL $00
+		JSR UDOTR_CFA
 		>CLITERAL $29
 		JSR EMIT_CFA
 		JSR SPACE_CFA
@@ -4552,31 +4547,31 @@ FLUSH_NFA ;flush
 		.DB $05^$80,'flus',$68^$80
 		.DW BLOCK_NFA
 FLUSH_CFA
-		JSR PREV_CFA
-		JSR FETCH_CFA
+		JSR PREV_CFA		( -- a )
+		JSR FETCH_CFA		( a -- a )
 FLUSH_LOOP
-		JSR DUP_CFA
-		JSR FETCH_CFA
-		JSR ZEROLESS_CFA
-		JSR ZEROBRANCH_CFA
+		JSR DUP_CFA			( a -- a a )
+		JSR FETCH_CFA		( a a -- a a )
+		JSR ZEROLESS_CFA	( a a -- a b )
+		JSR ZEROBRANCH_CFA	( a b -- a )
 		BEQ FLUSH_END
-		JSR DUP_CFA
-		JSR QUPDATE_CFA
-		JSR DUP_CFA
-		JSR FETCH_CFA
-		>LITERAL $7FFF
-		JSR AND_CFA
-		JSR OVER_CFA
-		JSR STORE_CFA
+		JSR DUP_CFA			( a -- a a )
+		JSR BFLUSH_CFA		( a a -- a )
+		JSR DUP_CFA 		( a -- a a )
+		JSR FETCH_CFA		( a a -- a a )
+		>LITERAL $7FFF		( a a -- a a n )
+		JSR AND_CFA			( a a n -- a n )
+		JSR OVER_CFA		( a n -- a n a )
+		JSR STORE_CFA		( a n a -- a )
 FLUSH_END
-		JSR PLUSBUF_CFA
-		JSR DUP_CFA
-		JSR PREV_CFA
-		JSR FETCH_CFA
-		JSR EQUAL_CFA
-		JSR ZEROBRANCH_CFA
-		BEQ FLUSH_LOOP
-		JSR DROP_CFA
+		JSR PLUSBUF_CFA		( a -- a )
+		JSR DUP_CFA			( a -- a a )
+		JSR PREV_CFA		( a -- a a a )
+		JSR FETCH_CFA		( a a a -- a a a)
+		JSR EQUAL_CFA		( a a a -- a b )
+		JSR ZEROBRANCH_CFA	( a b -- a )
+		BEQ FLUSH_LOOP		( a -- )
+		JSR DROP_CFA		( -- )
 		RTS
 
 UPDATE_NFA ;update
@@ -4614,6 +4609,7 @@ BLINE_NFA ;(line)
 BLINE_CFA
 		JSR BLOCK_CFA
 		JSR SWAP_CFA
+		JSR ONESUB_CFA
 		>CLITERAL $40
 		JSR MUL_CFA
 		JSR ADD_CFA
@@ -4650,8 +4646,8 @@ LIST_CFA
 		JSR TYPE_CFA
 		JSR SPACE_CFA
 		JSR DOT_CFA
-		>CLITERAL $10
-		>CLITERAL $00
+		>CLITERAL $11
+		>CLITERAL $01
 		JSR BDO_CFA
 LIST_LOOP
 		JSR CR_CFA
@@ -4949,7 +4945,7 @@ ABORT_CFA
 		JSR TYPE_CFA
 		JSR CR_CFA
 		JSR SLIT_CFA
- 		.DB $18,'Version 2.00 (Build 003)'
+ 		.DB $18,'Version 2.00 (Build 006)'
 		JSR COUNT_CFA
 		JSR TYPE_CFA
 		JSR CR_CFA
