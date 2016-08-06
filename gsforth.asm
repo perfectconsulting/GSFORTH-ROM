@@ -1,5 +1,22 @@
-; *** RECODE FILL
+;
+;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
+;    Version 2.00 Build 014
+;
+;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
+;
+;    This program is free software: you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation, either version 3 of the License, or
+;    (at your option) any later version.
 
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;
 		.CR 6502
 		.LF gsforth.lst
 		.TF gsforth.rom,BIN
@@ -108,10 +125,13 @@ OSWORD		.EQ $FFF1
 OSBYTE		.EQ $FFF4
 OSCLI		.EQ $FFF7
 
+; These values reprsent the inital values and high water marks of the X register.
+; It is assumed that the X regiser always points the the next free stack byte.
+
 STK_TOP		.EQ $20
 STK_BOT		.EQ $5F
 ASTK_TOP	.EQ $60
-ASTK_BOT	.EQ $6F
+ASTK_BOT	.EQ $8F
 
 ; ZERO PAGE MEMORY
 STK			.EQ $00
@@ -1222,20 +1242,9 @@ EMIT_CFA
 EMIT_FINISH
 		RTS
 
-TOVDU_NFA ;>vdu
-		.DB $04^$80,'>vd',$75^$80
-		.DW EMIT_NFA
-TOVDU_CFA
-		>CHK_STK_MIN 1,TOVDU
-		LDA STK+1,X
-		JSR OSWRCH
-		INX
-		INX
-		RTS
-
 FLUSHBUFFERS_NFA
 		.DB $0C^$80,'flushbuffer',$73^$80
-		.DW TOVDU_NFA
+		.DW EMIT_NFA
 FLUSHBUFFERS_CFA
 		STX SCRATCH1
 		LDA #$0F
@@ -4838,6 +4847,9 @@ LOADUSING_CFA
 		JSR CHANNEL_CFA
 		JSR FETCH_CFA
 		JSR TOA_CFA
+		JSR BLKS_CFA
+		JSR FETCH_CFA
+		JSR TOA_CFA
 		JSR BLK_CFA
 		JSR FETCH_CFA
 		JSR TOA_CFA
@@ -4858,6 +4870,9 @@ LOADUSING_CFA
 		JSR STORE_CFA
 		JSR AFROM_CFA
 		JSR BLK_CFA
+		JSR STORE_CFA
+		JSR AFROM_CFA
+		JSR BLKS_CFA
 		JSR STORE_CFA
 		JSR AFROM_CFA
 		JSR CHANNEL_CFA
@@ -4952,7 +4967,7 @@ ABORT_CFA
 		JSR TYPE_CFA
 		JSR CR_CFA
 		JSR SLIT_CFA
- 		.DB $18,'Version 2.00 (Build 012)'
+ 		.DB $18,'Version 2.00 (Build 014)'
 		JSR COUNT_CFA
 		JSR TYPE_CFA
 		JSR CR_CFA
@@ -5146,8 +5161,8 @@ MODE_CFA
 		JSR DUP_CFA
 		JSR FLUSH_CFA
 		>CLITERAL $16
-		JSR TOVDU_CFA
-		JSR TOVDU_CFA
+		JSR BEMIT_CFA
+		JSR BEMIT_CFA
 		JSR HIMEM_CFA
 		JSR LIMIT_CFA
 		JSR STORE_CFA
@@ -5162,9 +5177,9 @@ CLS_NFA ; cls
 		.DW MODE_NFA
 CLS_CFA
 		>CLITERAL $10
-		JSR TOVDU_CFA
+		JSR BEMIT_CFA
 		>CLITERAL $0C
-		JSR TOVDU_CFA
+		JSR BEMIT_CFA
 		RTS
 
 DOTA_NFA ; .a
@@ -5537,3 +5552,11 @@ DEBUG
 		LDX SCRATCH4
 		LDY SCRATCH5
 		RTS
+
+TEST
+		JSR SPSTORE_CFA
+		>LITERAL $1234
+		JSR DUP_CFA
+		JSR DROP_CFA
+		JSR DROP_CFA
+		JSR DROP_CFA
