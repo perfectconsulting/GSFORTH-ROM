@@ -1,6 +1,6 @@
-# SFORTH (ROM)
-Subroutine Thread FORTH for the BBC Micro
-=========================================
+# GSFORTH (ROM)
+Generic Subroutine Thread FORTH for the BBC Micro
+=================================================
 
 This was my first large assembly program. I wrote it the summer of 1983 (at the age of 16)
 
