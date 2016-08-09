@@ -1,6 +1,6 @@
 ;
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
-;    Version 2.00 Build 015
+;    Version 2.00 Build 016
 ;
 ;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
 ;
@@ -365,7 +365,7 @@ ROM_USER_START
     .DW $FFFF ;CURRENT
     .DW $FFFF ;CONTEXT
     .DW $0000 ;LATEST
-    .DW $0020 ;WIDTH
+    .DW $001F ;WIDTH
     .DW $0000 ;OUT
     .DW $0000 ;DPL
     .DW $5000 ;BLK
@@ -2263,10 +2263,24 @@ NOT_CFA
     EOR #$FF
     STA STK+2,X
     RTS
-
+    
+FALSE_NFA ; false
+    .DB $05^$80,'fals',$65^$80
+    .DW NOT_NFA
+FALSE_CFA
+    >LITERAL 0
+    RTS
+    
+TRUE_NFA ; true
+    .DB $04^$80,'tru',$65^$80
+    .DW FALSE_NFA
+TRUE_CFA
+    >LITERAL -1
+    RTS
+    
 TOGGLE_NFA ;toggle
     .DB $06^$80,'toggl',$65^$80
-    .DW NOT_NFA
+    .DW TRUE_NFA
 TOGGLE_CFA
     >CHK_STK_MIN 2,TOGGLE
     LDA (STK+3,X)
@@ -5058,7 +5072,7 @@ ABORT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
     JSR SLIT_CFA
-    .DB $18,'Version 2.00 (Build 015)'
+    .DB $18,'Version 2.00 (Build 016)'
     JSR COUNT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
