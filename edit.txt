@@ -36,9 +36,6 @@ screen definitions decimal
 : xyaddr ( -- a )
     y @ line x @ + ;
 
-: xytab ( -- )
-    x @ y @ <tab> ;
-
 : characters ( c n -- )
     0 do dup (emit) loop drop ;
     
@@ -139,14 +136,14 @@ screen definitions decimal
     0 63 x @ min max x !
     0 15 y @ min max y ! 
     0 blks @ 1- scr @ min max scr !
-    .xy xytab key
+    .xy x @ y @ <tab> key
     movementkeys not if
 	    systemkeys not if
 	    	blockkeys not if
 	    		insmod @ if
 	    	 		x @ y @ slide> y @ .line
 	   			endif
-	    		xytab dup dup emit x @ y @ key! 1 x +!
+	    		x @ y @ <tab> dup dup emit x @ y @ key! 1 x +!
 	    	endif
 	    endif
 		endif
