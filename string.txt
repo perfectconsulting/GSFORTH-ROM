@@ -1,0 +1,44 @@
+vocabulary string
+string definitions decimal
+
+: $variable ( n -- ccc )
+		<builds dup c, 0 c, here swap dup  allot blanks does> 1+ ;
+		 
+: $maxlen ( $ -- n )
+		1- c@ ;
+
+: $len ( $ -- n )
+		c@ ;
+		
+: $. ( $ -- )
+	count type ;
+
+: $empty ( $ -- )
+	  0 swap c! ;
+	  
+: $empty? ( $ -- f )
+		$len 0 = ;
+
+: $end ( $ -- a )
+		dup c@ swap 1+ + ;
+		
+: #$! ( a n $ -- )
+		over over ( a n $ n $ -- )
+		$maxlen
+    > 0 ?error 
+    swap >a  dup a@ swap c! 1+ a> cmove ;
+    
+: $! ( $from $to -- )
+		>a dup $len swap 1+ swap a> #$! ;
+		( over over $maxlen swap $len  <  0 ?error over $len 1+ cmove  ;		)
+		
+: #$+! ( a n  $ -- )
+		dup >a over over 
+		$len + dup >a 
+		over $maxlen > 0 ?error 
+		$end swap cmove a> a> c! ;
+	
+5 $variable five
+10 $variable ten
+
+forth definitions
