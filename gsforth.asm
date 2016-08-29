@@ -5064,7 +5064,7 @@ ABORT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
     JSR SLIT_CFA
-    .DB $18,'Version 2.00 (Build 016)'
+    .DB $18,'Version 2.00 (Build 017)'
     JSR COUNT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
