@@ -8,25 +8,25 @@ screen definitions decimal
     swap 31 (emit) (emit) (emit) ;
 
 : tab ( x y -- )
-    yoffset + swap xoffset + swap (tab) ; 
+    yoffset + swap xoffset + swap (tab) ;
 
 : <tab> ( x y -- )
     2 + swap 4 + swap tab ;
-      
+
 : cursor/on ( -- )
     0 1 4 osbyte 2drop drop ;
-    
+
 : cursor/off ( -- )
     0 0 4 osbyte 2drop drop ;
-    
+
 : line ( n -- a )
     64 * scr @ block + ;
 
 : key! ( c x y -- )
     line + c! ;
-    
+
 : key@ ( x y -- c )
-    line + c@ ;    
+    line + c@ ;
 
 0 variable x
 0 variable y
@@ -38,67 +38,72 @@ screen definitions decimal
 
 : characters ( c n -- )
     0 do dup (emit) loop drop ;
-    
+
 : ## ( n -- )
     0 <# # # #> (type) ;
 
 : ruler ( -- )
     ascii - 69 characters ;
-    
+
 : .scr ( -- )
-    0 0 tab ." Scr " scr @ ## ." /" blks @ 1- ## ;    
-    
+    0 0 tab ." Scr " scr @ ## ." /" blks @ 1- ## ;
+
 : .mode ( -- )
-    61 0 tab ." Mode " insmod @ if ." INS" else ." OVR" endif ;    
-    
+    61 0 tab ." Mode " insmod @ if ." INS" else ." OVR" endif ;
+
 : .pad ( -- )
-    4 19 tab pad 64 (type) ;    
-    
+    4 19 tab pad 64 (type) ;
+
 : .xy ( -- )
-    10 0 tab x @ ## ascii : (emit) y @ ## ; 
-    
+    10 0 tab x @ ## ascii : (emit) y @ ## ;
+
 : panel ( -- )
     cls
     .scr .xy .mode
     0 1 tab ruler
-    16 0 do 
-    0 i 2+ tab ascii | (emit) i ## 
-    space ascii . 64 characters ascii | (emit) 
-    loop 
-    0 18 tab ruler 
-    0 19 tab ." |PD " ascii . 64 characters ascii | (emit) 
-    0 20 tab ruler .pad ; 
+    16 0 do
+    0 i 2+ tab ascii | (emit) i ##
+    space ascii . 64 characters ascii | (emit)
+    loop
+    0 18 tab ruler
+    0 19 tab ." |PD " ascii . 64 characters ascii | (emit)
+    0 20 tab ruler .pad ;
 
 : .line ( y -- )
     dup 0 swap <tab> line 64 (type) ;
 
 : .list ( -- )
-    16 0 do i .line loop ; 
-  
-: key! ( c x y -- )
-    line + c! ;
-  
+    16 0 do i .line loop ;
+
 : slide> ( x y -- )
-    line 63 + swap 64 swap - 0 do dup c@  over 1+ c! 1- loop drop ;
-    
+    line 63 + swap 64 swap - 0
+    do dup c@  over 1+ c! 1- loop drop ;
+
 : <slide ( x y -- )
-    line over + swap 63 swap do dup 1+ c@  over c! 1+ loop drop ;
- 
+    line over + swap 63 swap
+    do dup 1+ c@  over c! 1+ loop drop ;
+
 : insertline ( y -- )
      1- 14 do i line i 1+ line 64 cmove  -1 +loop ;
- 
-: deleteline ( y -- ) 
+
+: deleteline ( y -- )
      15 swap do i 1+ line i line 64 cmove loop ;
 
-: ctrl ( c -- c) 
+: ctrl ( c -- c)
     64 - ;
 
 : delete ( -- )
     insmod @ if
-        x @ y @ <slide bl 63 y @ key!
+        x @ 1- 0 max  y @ <slide bl 63 y @ key!
     else
-        bl x @ y @ key!  
+        bl x @ y @ key!
     endif -1 x +! y @ .line ;
+
+: insert ( -- )
+    insmod @ if
+      x @ y @ slide> y @ .line
+    endif
+    x @ y @ <tab> dup dup (emit) x @ y @ key! 1 x +! ;
 
 : movementkeys ( c -- f )
     dup 136 = if  -1 x +! -1 else
@@ -107,9 +112,7 @@ screen definitions decimal
     dup 138 = if 1 y +! -1 else
     dup 13 = if 0 x ! 1 y +! -1 else
     dup 9 = if x @ 4 / 1+ 4 * x ! -1 else
-    dup 127 = if insmod @ if x @  y @ <slide bl 63 y @ key! y @ .line
-   	else bl (emit) bl x @ y @ key! 
-   	endif -1 x +! -1 else  
+    dup 127 = if delete -1 else
     0
     endif endif endif endif endif endif endif ;
 
@@ -117,41 +120,48 @@ screen definitions decimal
     dup ascii X ctrl = if 1 exit !  -1 else
     dup ascii R ctrl = if .list -1 else
     dup ascii S ctrl = if update flush -1 else
-    dup ascii T ctrl = if insmod @ not insmod ! .mode .mode -1 else
+    dup ascii T ctrl = if insmod @ not insmod ! .mode -1 else
+    dup ascii N ctrl = if 0 blks @ 1- scr @ 1+ min max scr !
+      .scr .list -1 else
+    dup ascii L ctrl = if 0 blks @ 1- scr @ 1- min max scr !
+      .scr .list -1 else
 		0
-		endif endif endif endif ;
-		
+		endif endif endif endif endif endif ;
+
 : blockkeys ( c -- f )
-    dup ascii C ctrl = if y @ line pad 64 cmove .pad -1 else
-    dup ascii V ctrl = if pad y @ line 64 cmove y @ .line -1 else
-    dup ascii D ctrl = if y @ insertline y @ line 64 blanks .list -1 else
-    dup ascii U ctrl = if y @ deleteline 15 line 64 blanks .list -1 else
-		dup ascii B ctrl = if y @ line 64 blanks y @ .line -1 else
-    dup ascii N ctrl = if 0 blks @ 1- scr @ 1+ min max scr ! .scr .list -1 else
-    dup ascii L ctrl = if 0 blks @ 1- scr @ 1- min max scr ! .scr .list -1 else
+    dup ascii C ctrl = if y @ line pad
+      64 cmove .pad -1 else
+    dup ascii V ctrl = if pad y @ line
+      64 cmove y @ .line -1 else
+    dup ascii D ctrl = if y @ insertline y @ line
+      64 blanks .list -1 else
+    dup ascii U ctrl = if y @ deleteline 15 line
+      64 blanks .list -1 else
+		dup ascii B ctrl = if y @ line 64 blanks
+      y @ .line -1 else
     0
-    endif endif endif endif endif endif endif ;
+    endif endif endif endif endif  ;
+
+: allkeys ( -- )
+    key
+    movementkeys not if
+      systemkeys not if
+        blockkeys not if
+            insert
+        endif
+      endif
+    endif ;
 
 : keyscan ( -- )
     0 63 x @ min max x !
-    0 15 y @ min max y ! 
+    0 15 y @ min max y !
     0 blks @ 1- scr @ min max scr !
-    .xy x @ y @ <tab> key
-    movementkeys not if
-	    systemkeys not if
-	    	blockkeys not if
-	    		insmod @ if
-	    	 		x @ y @ slide> y @ .line
-	   			endif
-	    		x @ y @ <tab> dup dup emit x @ y @ key! 1 x +!
-	    	endif
-	    endif
-		endif
+    .xy x @ y @ <tab> allkeys
    	drop ;
-    
+
 : init ( -- )
     empty-buffers
-    0 x ! 0 y ! cls 
+    0 x ! 0 y ! cls
     0 insmod !
     pad 64 blanks
     0 exit !  ;
@@ -162,4 +172,5 @@ screen definitions decimal
    init panel .list
    begin keyscan exit @ until
    cursor/off empty-buffers cls ;
-   
+
+forth definitions
