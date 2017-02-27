@@ -1,6 +1,6 @@
 ;
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
-;    Version 2.00 Build 017
+;    Version 2.02
 ;
 ;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
 ;
@@ -100,6 +100,7 @@ POP_A .MA
     INX
     INX
     .EM
+
 BRKV      .EQ $202
 OSARGS    .EQ $FFDA
 OSRDCH    .EQ $FFE0
@@ -112,7 +113,7 @@ OSARGS    .EQ $FFDA
 OSFIND    .EQ $FFCE
 OSWORD    .EQ $FFF1
 OSBYTE    .EQ $FFF4
-OSCLI   .EQ $FFF7
+OSCLI     .EQ $FFF7
 
 ; These values reprsent the inital values and high water marks of the X register.
 ; It is assumed that the X regiser always points the the next free stack byte.
