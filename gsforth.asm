@@ -1,6 +1,6 @@
 ;
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
-;    Version 2.03
+;    Version 2.04
 ;
 ;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
 ;
@@ -193,7 +193,7 @@ ROM_HEADER_TITLE_STRING
     .DB 'GSFORTH'
     .DB $00
 ROM_HEADER_VERSION_STRING
-    .DB '2.03'
+    .DB '2.04'
 ROM_HEADER_COPYRIGHT_STRING
     .DB $0,'(C)2016 Steven James',$0
     .DW $8000
@@ -1647,7 +1647,7 @@ OSBPUT_CFA
     INX
     RTS
 
-OSGBPB_NFA ;osgbpb
+OSGBPB_NFA ;osgbpb ( d-seq d-num d-addr fh mode -- )
     .DB $06^$80,'osgbp',$62^$80
     .DW OSBPUT_NFA
 OSGBPB_CFA
@@ -3672,7 +3672,7 @@ TRAVERSE_LOOP
     JSR DROP_CFA
     RTS
 
-TOBODY_NFA ;>body
+TOBODY_NFA ;>body ( nfa -- cfa )
     .DB $05^$80,'>bod',$79^$80
     .DW TRAVERSE_NFA
 TOBODY_CFA
@@ -4930,11 +4930,6 @@ LOADUSING_NFA ;loadusing ( f t -- cccc )
     .DB $09^$C0,'loadusin',$67^$80
     .DW USE_NFA
 LOADUSING_CFA
-    JSR DUP_CFA
-    JSR ZEROGREATER_CFA
-    JSR NOT_CFA
-    >CLITERAL ERR_RANGE
-    JSR QERROR_CFA
     JSR CHANNEL_CFA
     JSR FETCH_CFA
     JSR TOA_CFA
@@ -5062,7 +5057,7 @@ ABORT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
     JSR SLIT_CFA
-    .DB $0C,'Version 2.03'
+    .DB $0C,'Version 2.04'
     JSR COUNT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
@@ -5733,3 +5728,10 @@ OS_CALL_ERROR
     RTS
 OS_CALL_INLINE
     .DB $FD
+
+
+
+
+
+
+
