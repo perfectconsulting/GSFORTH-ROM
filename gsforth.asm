@@ -1,6 +1,6 @@
 ;
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
-;    Version 2.04
+;    Version 2.05
 ;
 ;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
 ;
@@ -193,7 +193,7 @@ ROM_HEADER_TITLE_STRING
     .DB 'GSFORTH'
     .DB $00
 ROM_HEADER_VERSION_STRING
-    .DB '2.04'
+    .DB '2.05'
 ROM_HEADER_COPYRIGHT_STRING
     .DB $0,'(C)2016 Steven James',$0
     .DW $8000
@@ -1116,9 +1116,19 @@ EXECUTE_CFA
     INX
     JMP (SCRATCH1)
 
+MYSELF_NFA ; myself
+    .DB $06^$C0,'mysel', $66^$80
+    .DW EXECUTE_NFA
+MYSELF_CFA
+    JSR QCOMP_CFA
+    JSR LATEST_CFA
+    JSR TOBODY_CFA
+    JSR JSRCOMMA_CFA
+    RTS
+
 SPSTORE_NFA ;sp!
     .DB $03^$80,'sp', $21^$80
-    .DW EXECUTE_NFA
+    .DW MYSELF_NFA
 SPSTORE_CFA
     LDX #STK_BOT
     RTS
@@ -1273,9 +1283,29 @@ ADROP_CFA
     STY ASP
     RTS
 
+LSB_NFA ; lsb
+    .DB $03^$80,'ls',$62^$80
+    .DW ADROP_NFA
+LSB_CFA
+    >CHK_STK_MIN 1,LSB
+    LDA #00
+    STA STK+2,X
+    RTS   
+
+MSB_NFA ; msb
+    .DB $03^$80,'ms',$62^$80
+    .DW LSB_NFA
+MSB_CFA
+    >CHK_STK_MIN 1,MSB
+    LDA STK+2,X
+    STA STK+1,X
+    LDA #00
+    STA STK+2,X
+    RTS   
+
 BEMIT_NFA ;(emit)
     .DB $06^$80,'(emit',$29^$80
-    .DW ADROP_NFA
+    .DW MSB_NFA
 BEMIT_CFA
     >CHK_STK_MIN 1,BEMIT
     LDA STK+1,X
@@ -4926,7 +4956,7 @@ USE_CORE
     JSR STORE_CFA
     RTS
 
-LOADUSING_NFA ;loadusing ( f t -- cccc )
+LOADUSING_NFA ;loadusing ( n -- cccc )
     .DB $09^$C0,'loadusin',$67^$80
     .DW USE_NFA
 LOADUSING_CFA
