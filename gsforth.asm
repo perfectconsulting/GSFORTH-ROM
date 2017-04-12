@@ -1,6 +1,6 @@
 ;
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
-;    Version 2.05
+;    Version 2.06
 ;
 ;    Copyright 2016 Steven Janes (www.perfectconsulting.co.uk)
 ;
@@ -5096,7 +5096,7 @@ ABORT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
     JSR SLIT_CFA
-    .DB $0C,'Version 2.05'
+    .DB $0C,'Version 2.06'
     JSR COUNT_CFA
     JSR TYPE_CFA
     JSR CR_CFA
@@ -5275,15 +5275,45 @@ HIMEM_CFA
     STA STK+2,X
     RTS
 
-MODECOLUMNS_NFA
-    .DB $0B^$80,'modecolumn',$73^$80
+CURRENTMODE_NFA
+    .DB $0B^$80,'currentmod',$65^$80
     .DW HIMEM_NFA
-MODECOLUMNS_CFA
-    >LITERAL $C3EF
+CURRENTMODE_CFA
+    >LITERAL $0355
+    JSR CFETCH_CFA
+    RTS
+
+MODEROWS_NFA
+    .DB $08^$80,'moderow',$73^$80
+    .DW CURRENTMODE_NFA
+MODEROWS_CFA
+    >LITERAL $C3E7
     JSR ADD_CFA
     JSR CFETCH_CFA
     JSR ONEADD_CFA
     RTS
+
+MODECOLUMNS_NFA
+    .DB $0B^$80,'modecolumn',$73^$80
+    .DW MODEROWS_NFA
+MODECOLUMNS_CFA
+    >CLITERAL $00
+    JSR MAX_CFA
+    >CLITERAL $07
+    JSR MIN_CFA
+    >LITERAL MODE_COLUMNS_TABLE
+    JSR ADD_CFA
+    JSR CFETCH_CFA
+    RTS
+MODE_COLUMNS_TABLE
+    .DB 80 ;mode 0
+    .DB 40 ;mode 1
+    .DB 20 ;mode 2
+    .DB 80 ;mode 3
+    .DB 40 ;mode 4
+    .DB 20 ;mode 5
+    .DB 40 ;mode 6
+    .DB 40 ;mode 7
 
 MODE_NFA
     .DB $04^$80,'mod',$65^$80
