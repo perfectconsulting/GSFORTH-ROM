@@ -118,9 +118,9 @@ OSCLI     .EQ $FFF7
 ; These values reprsent the inital values and high water marks of the X register.
 ; It is assumed that the X regiser always points the the next free stack byte.
 
-STK_TOP   .EQ $20
-STK_BOT   .EQ $79
-ASTK_TOP  .EQ $79
+STK_TOP   .EQ $00
+STK_BOT   .EQ $69
+ASTK_TOP  .EQ $69
 ASTK_BOT  .EQ $8F
 
 ; ZERO PAGE MEMORY
@@ -193,7 +193,7 @@ ROM_HEADER_TITLE_STRING
     .DB 'GSFORTH'
     .DB $00
 ROM_HEADER_VERSION_STRING
-    .DB '2.05'
+    .DB '2.06'
 ROM_HEADER_COPYRIGHT_STRING
     .DB $0,'(C)2016 Steven James',$0
     .DW $8000
