@@ -118,9 +118,9 @@ OSCLI     .EQ $FFF7
 ; These values reprsent the inital values and high water marks of the X register.
 ; It is assumed that the X regiser always points the the next free stack byte.
 
-STK_TOP   .EQ $00
-STK_BOT   .EQ $69
-ASTK_TOP  .EQ $69
+STK_TOP   .EQ $20
+STK_BOT   .EQ $79
+ASTK_TOP  .EQ $79
 ASTK_BOT  .EQ $8F
 
 ; ZERO PAGE MEMORY
@@ -5797,7 +5797,6 @@ OS_CALL_ERROR
     RTS
 OS_CALL_INLINE
     .DB $FD
-
 
 
 
