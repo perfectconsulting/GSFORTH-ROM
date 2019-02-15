@@ -2,7 +2,7 @@
 ;    Subroutine Threaded FIG FORTH for the BBC Micro Model 'B'
 ;    Version 2.08
 ;
-;    Copyright 2019 Steven JaMes (www.perfectconsulting.co.uk)
+;    Copyright 2019 Steven James (www.perfectconsulting.co.uk)
 ;
 ;    This program is free software: you can redistribute it and/or modify
 ;    it under the terms of the GNU General Public License as published by
