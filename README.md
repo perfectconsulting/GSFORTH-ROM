@@ -38,4 +38,7 @@ To load from block 0 in another block file, while keeping position the current b
 
 **0 loadusing TEST**
 
+To execute a BBC Micro Star Command:
+
+**os' \*cat'**
 
