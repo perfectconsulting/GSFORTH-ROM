@@ -25,7 +25,7 @@ To close the current block file:
 
 **disuse**
 
-To see what block file cache:
+To see the block file cache:
 
 **.buffers**
 
